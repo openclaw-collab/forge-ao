@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["-y", "@google/stitch-mcp@latest"],
+      "env": {}
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/context7-mcp@latest"],
+      "env": {}
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/playwright-mcp@latest"],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "workflows": {
+    "forge-complete": {
+      "name": "FORGE Complete",
+      "description": "Full 10-phase FORGE development workflow",
+      "phases": [
+        {
+          "id": "init",
+          "name": "Initialize",
+          "description": "Personalize FORGE for the project",
+          "command": "/forge:start",
+          "skill": "forge-init",
+          "autoLoadAgents": ["skill-router"],
+          "completesWhen": "CLAUDE.md exists"
+        },
+        {
+          "id": "brainstorm",
+          "name": "Brainstorm",
+          "description": "Generate and document multiple approaches",
+          "command": "/forge:brainstorm",
+          "skill": "forge-brainstorm",
+          "autoLoadAgents": ["brainstormer"],
+          "completesWhen": "docs/forge/brainstorm.md exists"
+        },
+        {
+          "id": "research",
+          "name": "Research",
+          "description": "Validate approaches and gather information",
+          "command": "/forge:research",
+          "skill": "forge-research",
+          "autoLoadAgents": ["researcher"],
+          "completesWhen": "docs/forge/research.md exists"
+        },
+        {
+          "id": "design",
+          "name": "Design",
+          "description": "Create visual and technical designs",
+          "command": "/forge:design",
+          "skill": "forge-design",
+          "autoLoadAgents": ["design-reviewer"],
+          "autoLoadSkills": ["forge-stitch-master", "forge-design-system"],
+          "completesWhen": "docs/forge/design.md exists"
+        },
+        {
+          "id": "plan",
+          "name": "Plan",
+          "description": "Create detailed implementation plan",
+          "command": "/forge:plan",
+          "skill": "forge-plan",
+          "autoLoadAgents": ["architecture-strategist"],
+          "autoLoadSkills": ["writing-plans"],
+          "completesWhen": "docs/forge/plan.md exists"
+        },
+        {
+          "id": "test",
+          "name": "Test Strategy",
+          "description": "Define test approach before building",
+          "command": "/forge:test",
+          "skill": "forge-test",
+          "autoLoadSkills": ["test-driven-development"],
+          "completesWhen": "docs/forge/test.md exists"
+        },
+        {
+          "id": "build",
+          "name": "Build",
+          "description": "Execute implementation with TDD",
+          "command": "/forge:build",
+          "skill": "forge-build",
+          "autoLoadAgents": ["builder"],
+          "autoLoadSkills": ["subagent-driven-development", "implementer-prompt"],
+          "completesWhen": "All plan tasks complete"
+        },
+        {
+          "id": "validate",
+          "name": "Validate",
+          "description": "Verify against requirements",
+          "command": "/forge:validate",
+          "skill": "forge-validate",
+          "autoLoadAgents": ["performance-guardian", "security-sentinel"],
+          "autoLoadSkills": ["verification-before-completion"],
+          "completesWhen": "docs/forge/validate.md exists"
+        },
+        {
+          "id": "review",
+          "name": "Review",
+          "description": "Code review and quality check",
+          "command": "/forge:review",
+          "skill": "forge-review",
+          "autoLoadAgents": ["security-reviewer", "code-simplicity-reviewer"],
+          "autoLoadSkills": ["code-quality-reviewer-prompt", "spec-reviewer-prompt"],
+          "completesWhen": "docs/forge/review.md exists"
+        },
+        {
+          "id": "learn",
+          "name": "Learn",
+          "description": "Capture patterns and insights",
+          "command": "/forge:learn",
+          "skill": "forge-learn",
+          "autoLoadAgents": ["archivist", "pattern-recognition-specialist"],
+          "completesWhen": "docs/forge/learn.md exists"
+        }
+      ]
+    },
+    "forge-quick": {
+      "name": "FORGE Quick",
+      "description": "Abbreviated workflow for small tasks",
+      "phases": [
+        {
+          "id": "brainstorm",
+          "name": "Brainstorm",
+          "command": "/forge:brainstorm",
+          "optional": true
+        },
+        {
+          "id": "plan",
+          "name": "Plan",
+          "command": "/forge:plan",
+          "skill": "writing-plans"
+        },
+        {
+          "id": "build",
+          "name": "Build",
+          "command": "/forge:build",
+          "skill": "forge-build"
+        }
+      ]
+    },
+    "forge-debug": {
+      "name": "FORGE Debug",
+      "description": "Systematic debugging workflow",
+      "phases": [
+        {
+          "id": "analyze",
+          "name": "Analyze",
+          "command": "/forge:debug",
+          "skill": "systematic-debugging"
+        },
+        {
+          "id": "reproduce",
+          "name": "Reproduce",
+          "skill": "systematic-debugging"
+        },
+        {
+          "id": "fix",
+          "name": "Fix",
+          "command": "/forge:build"
+        },
+        {
+          "id": "verify",
+          "name": "Verify",
+          "command": "/forge:verify"
+        }
+      ]
+    }
+  }
+}

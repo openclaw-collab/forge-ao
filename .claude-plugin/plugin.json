@@ -1,0 +1,26 @@
+{
+  "name": "forge-ao",
+  "version": "1.0.0",
+  "description": "FORGE-AO: Agent-native 10-phase development workflow for Agent Orchestrator. AO-only, no standalone mode. Features mandatory debate gates, drift-resistant handoffs, and deterministic artifacts.",
+  "author": {
+    "name": "Muadh Sambul",
+    "email": "user@example.com"
+  },
+  "keywords": [
+    "workflow",
+    "development",
+    "agent-orchestrator",
+    "ao-native",
+    "debate-gate",
+    "structured-debate",
+    "karpathy-guidelines",
+    "multi-agent",
+    "continuous-learning",
+    "drift-resistant"
+  ],
+  "commands": "commands",
+  "agents": "agents",
+  "skills": "skills",
+  "hooks": "hooks/hooks.json",
+  "mcpServers": ".mcp.json"
+}

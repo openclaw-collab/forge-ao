@@ -1,0 +1,217 @@
+{
+  "name": "FORGE 10-Phase Development Workflow",
+  "version": "0.5.0",
+  "description": "AO-native comprehensive development workflow with embedded debate gates: Initialize → Brainstorm (Debate Gate) → Research → Design → Plan → Test → Build → Validate → Review → Learn",
+  "phases": [
+    {
+      "id": "init",
+      "name": "Initialize",
+      "command": "/forge:start",
+      "skill": "forge-init",
+      "description": "Personalize FORGE setup for the project",
+      "artifacts": [".claude/CLAUDE.md", ".claude/forge/active-workflow.md"],
+      "optional": false
+    },
+    {
+      "id": "brainstorm",
+      "name": "Brainstorm",
+      "command": "/forge:brainstorm",
+      "skill": "forge-brainstorm",
+      "description": "Explore approaches, debate options, and reach structured decision",
+      "artifacts": [
+        "docs/forge/brainstorm.md",
+        "docs/forge/debate/brainstorm-<id>/debate-plan.md",
+        "docs/forge/debate/brainstorm-<id>/advocate.md",
+        "docs/forge/debate/brainstorm-<id>/skeptic.md",
+        "docs/forge/debate/brainstorm-<id>/operator.md",
+        "docs/forge/debate/brainstorm-<id>/synthesis.md"
+      ],
+      "gate": {
+        "name": "Debate Gate",
+        "description": "Mandatory structured debate before completing brainstorm",
+        "required_outputs": [
+          "debate-plan.md",
+          "advocate.md",
+          "skeptic.md",
+          "operator.md",
+          "synthesis.md"
+        ],
+        "ao_behavior": "FORGE generates debate plan only; AO executes debate via separate sessions",
+        "standalone_behavior": "FORGE runs structured self-debate, writing same artifacts"
+      },
+      "optional": false
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "command": "/forge:research",
+      "skill": "forge-research",
+      "description": "Validate brainstorm decision with best practices research",
+      "artifacts": ["docs/forge/research.md"],
+      "optional": false
+    },
+    {
+      "id": "design",
+      "name": "Design",
+      "command": "/forge:design",
+      "skill": "forge-design",
+      "description": "Create design specifications and mockups based on research",
+      "artifacts": ["docs/forge/design.md"],
+      "optional": false
+    },
+    {
+      "id": "plan",
+      "name": "Plan",
+      "command": "/forge:plan",
+      "skill": "forge-plan",
+      "description": "Create detailed implementation plans",
+      "artifacts": ["docs/forge/plan.md"],
+      "optional": false
+    },
+    {
+      "id": "test",
+      "name": "Test Strategy",
+      "command": "/forge:test",
+      "skill": "forge-test",
+      "description": "Define test strategy and write test cases before building",
+      "artifacts": ["docs/forge/test-strategy.md"],
+      "optional": false
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "command": "/forge:build",
+      "skill": "forge-build",
+      "description": "Execute implementation with TDD discipline and automatic test loop",
+      "artifacts": ["src/", "tests/", "docs/forge/build-log.md"],
+      "optional": false
+    },
+    {
+      "id": "validate",
+      "name": "Validate",
+      "command": "/forge:validate",
+      "skill": "forge-validate",
+      "description": "Verify implementation against requirements with evidence",
+      "artifacts": ["docs/forge/validation-report.md"],
+      "optional": false
+    },
+    {
+      "id": "review",
+      "name": "Review",
+      "command": "/forge:review",
+      "skill": "forge-review",
+      "description": "Code review and quality assessment from multiple angles",
+      "artifacts": ["docs/forge/review-report.md"],
+      "optional": false
+    },
+    {
+      "id": "learn",
+      "name": "Learn",
+      "command": "/forge:learn",
+      "skill": "forge-learn",
+      "description": "Capture knowledge and update memory",
+      "artifacts": ["docs/forge/learnings.md"],
+      "optional": false
+    }
+  ],
+  "quickCommands": [
+    {
+      "name": "/forge:quick",
+      "description": "Quick task execution for small changes"
+    },
+    {
+      "name": "/forge:help",
+      "description": "Show workflow status and recommendations including debate state"
+    },
+    {
+      "name": "/forge:swarm",
+      "description": "AO mode: Outputs AO spawn plan only. Standalone: Parallel agent execution",
+      "ao_behavior": "Generates parallel task plan for AO execution",
+      "standalone_behavior": "Spawns parallel Task agents"
+    },
+    {
+      "name": "/forge:debate",
+      "description": "Execute or generate debate for current phase"
+    }
+  ],
+  "agents": {
+    "skill-router": {
+      "description": "Routes tasks to appropriate skills and agents",
+      "trigger": "session_start"
+    },
+    "builder": {
+      "description": "Executes implementation tasks with TDD",
+      "trigger": "build_phase"
+    },
+    "researcher": {
+      "description": "Researches solutions and best practices",
+      "trigger": "research_phase"
+    },
+    "security-reviewer": {
+      "description": "Security-focused code review",
+      "trigger": "review_phase"
+    },
+    "performance-guardian": {
+      "description": "Performance analysis and optimization",
+      "trigger": "optimization_request"
+    },
+    "brainstormer": {
+      "description": "Ideation and exploration with debate integration",
+      "trigger": "brainstorm_phase"
+    },
+    "advocate": {
+      "description": "Debate role: argues FOR an approach",
+      "trigger": "debate_phase",
+      "writes_to": "docs/forge/debate/<id>/advocate.md"
+    },
+    "skeptic": {
+      "description": "Debate role: argues AGAINST an approach",
+      "trigger": "debate_phase",
+      "writes_to": "docs/forge/debate/<id>/skeptic.md"
+    },
+    "operator": {
+      "description": "Debate role: assesses implementation feasibility",
+      "trigger": "debate_phase",
+      "writes_to": "docs/forge/debate/<id>/operator.md"
+    },
+    "synthesizer": {
+      "description": "Debate role: reconciles positions and produces decision",
+      "trigger": "debate_phase",
+      "writes_to": "docs/forge/debate/<id>/synthesis.md"
+    },
+    "mass-change": {
+      "description": "Codebase-wide modifications",
+      "trigger": "mass_change_request"
+    },
+    "docs-maintainer": {
+      "description": "Documentation maintenance",
+      "trigger": "doc_drift"
+    },
+    "latex-validator": {
+      "description": "LaTeX validation for math rendering",
+      "trigger": "latex_content"
+    }
+  },
+  "integration": {
+    "mcpServers": ["stitch", "context7", "memory"],
+    "hooks": ["PreCompact", "PreToolUse", "PostToolUse", "SessionStart", "UserPromptSubmit"],
+    "memorySystems": ["entity", "pattern", "learning", "consolidated"],
+    "aoIntegration": {
+      "enabled": true,
+      "mode_detection": "AO_SESSION env var",
+      "metadata_sync": true,
+      "debate_orchestration": "AO spawns debate sessions, FORGE generates plan only"
+    }
+  },
+  "debate_schema": {
+    "version": "1.0",
+    "location": "docs/forge/debate/<phase>-<id>/",
+    "required_files": ["debate-plan.md", "advocate.md", "skeptic.md", "operator.md", "synthesis.md"],
+    "completion_criteria": {
+      "all_roles_written": true,
+      "synthesis_includes_decision": true,
+      "decision_criteria_documented": true,
+      "kill_switch_defined": true
+    }
+  }
+}

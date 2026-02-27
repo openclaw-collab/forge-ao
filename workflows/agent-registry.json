@@ -1,0 +1,215 @@
+{
+  "agents": {
+    "skill-router": {
+      "name": "Skill Router",
+      "description": "Routes tasks to appropriate skills based on context",
+      "model": "opus",
+      "color": "cyan",
+      "tools": ["Read", "Glob", "Grep"],
+      "triggers": ["session_start", "task_type_change"],
+      "skills": ["forge-skill-router"],
+      "alwaysAvailable": true
+    },
+    "researcher": {
+      "name": "Researcher",
+      "description": "Deep research agent for technology evaluation",
+      "model": "opus",
+      "color": "blue",
+      "tools": ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "MCP"],
+      "triggers": ["research", "best practice", "technology"],
+      "skills": ["forge-research"]
+    },
+    "brainstormer": {
+      "name": "Brainstormer",
+      "description": "Generates and evaluates multiple approaches",
+      "model": "opus",
+      "color": "yellow",
+      "tools": ["Read", "Glob", "Grep", "WebSearch"],
+      "triggers": ["brainstorm", "explore options", "ideas"]
+    },
+    "builder": {
+      "name": "Builder",
+      "description": "Implements tasks with TDD discipline",
+      "model": "opus",
+      "color": "green",
+      "tools": ["Read", "Edit", "Write", "Bash", "Skill"],
+      "triggers": ["implement", "build", "code"],
+      "skills": ["subagent-driven-development"]
+    },
+    "archivist": {
+      "name": "Archivist",
+      "description": "Captures and organizes knowledge",
+      "model": "opus",
+      "color": "magenta",
+      "tools": ["Read", "Write", "Glob"],
+      "triggers": ["document", "capture", "learn"]
+    },
+    "security-reviewer": {
+      "name": "Security Reviewer",
+      "description": "Security-focused code reviewer",
+      "model": "opus",
+      "color": "red",
+      "tools": ["Read", "Glob", "Grep", "Edit"],
+      "triggers": ["security", "vulnerability", "auth"],
+      "skills": ["security-review"]
+    },
+    "security-sentinel": {
+      "name": "Security Sentinel",
+      "description": "Proactive security analysis agent",
+      "model": "opus",
+      "color": "red",
+      "tools": ["Read", "Glob", "Grep"],
+      "triggers": ["security audit", "vulnerability scan"]
+    },
+    "design-reviewer": {
+      "name": "Design Reviewer",
+      "description": "UI/UX design compliance reviewer",
+      "model": "opus",
+      "color": "purple",
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "MCP"],
+      "triggers": ["design review", "ui check", "design system"],
+      "skills": ["frontend-design", "forge-design-system"]
+    },
+    "performance-guardian": {
+      "name": "Performance Guardian",
+      "description": "Performance optimization specialist",
+      "model": "opus",
+      "color": "orange",
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "MCP"],
+      "triggers": ["optimize", "performance", "slow"],
+      "skills": ["performance-optimization"]
+    },
+    "performance-oracle": {
+      "name": "Performance Oracle",
+      "description": "Deep performance analysis and prediction",
+      "model": "opus",
+      "color": "orange",
+      "tools": ["Read", "Glob", "Grep", "Bash"],
+      "triggers": ["performance audit", "bottleneck"]
+    },
+    "mass-change": {
+      "name": "Mass Change",
+      "description": "Large-scale refactoring specialist",
+      "model": "opus",
+      "color": "blue",
+      "tools": ["Read", "Edit", "Write", "Bash", "MCP"],
+      "triggers": ["refactor all", "mass change", "bulk update"],
+      "requiresConfirmation": true
+    },
+    "docs-maintainer": {
+      "name": "Docs Maintainer",
+      "description": "Documentation consistency checker",
+      "model": "opus",
+      "color": "gray",
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write"],
+      "triggers": ["update docs", "doc drift", "documentation"]
+    },
+    "latex-validator": {
+      "name": "LaTeX Validator",
+      "description": "Math rendering and LaTeX validation",
+      "model": "opus",
+      "color": "blue",
+      "tools": ["Read", "Edit", "Write", "MCP"],
+      "triggers": ["latex", "math", "equation"]
+    },
+    "architecture-strategist": {
+      "name": "Architecture Strategist",
+      "description": "System architecture and design patterns",
+      "model": "opus",
+      "color": "cyan",
+      "tools": ["Read", "Glob", "Grep", "Write"],
+      "triggers": ["architecture", "design pattern", "system design"]
+    },
+    "code-simplicity-reviewer": {
+      "name": "Code Simplicity Reviewer",
+      "description": "Code clarity and simplicity specialist",
+      "model": "opus",
+      "color": "green",
+      "tools": ["Read", "Glob", "Grep", "Edit"],
+      "triggers": ["simplify", "clean code", "refactor"]
+    },
+    "pattern-recognition-specialist": {
+      "name": "Pattern Recognition Specialist",
+      "description": "Identifies and documents code patterns",
+      "model": "opus",
+      "color": "yellow",
+      "tools": ["Read", "Glob", "Grep", "Write"],
+      "triggers": ["pattern", "extract pattern", "common solution"]
+    },
+    "julik-frontend-races-reviewer": {
+      "name": "Julik Frontend Races Reviewer",
+      "description": "Race condition detection in frontend code",
+      "model": "opus",
+      "color": "red",
+      "tools": ["Read", "Glob", "Grep"],
+      "triggers": ["race condition", "async bug", "frontend timing"]
+    },
+    "test-architect": {
+      "name": "Test Architect",
+      "description": "Risk-based testing specialist for comprehensive QA",
+      "model": "opus",
+      "color": "orange",
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "MCP"],
+      "triggers": ["test", "QA", "risk", "coverage", "ATDD", "acceptance", "ci/cd", "pipeline", "quality audit"],
+      "skills": ["risk-based-testing", "atdd-workflow", "test-automation", "test-review", "ci-cd-setup"]
+    },
+    "ci-specialist": {
+      "name": "CI Specialist",
+      "description": "CI/CD pipeline expert for test automation and quality gates",
+      "model": "opus",
+      "color": "cyan",
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
+      "triggers": ["ci/cd", "pipeline", "github actions", "gitlab ci", "jenkins", "azure devops", "quality gate", "test automation", "deployment"],
+      "skills": ["ci-cd-setup", "test-automation"]
+    },
+    "arkived-orchestrator": {
+      "name": "Arkived Orchestrator",
+      "description": "Legacy compound engineering orchestrator",
+      "model": "opus",
+      "color": "purple",
+      "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"],
+      "triggers": ["arkived workflow"],
+      "deprecated": true
+    },
+    "advocate": {
+      "name": "Debate Advocate",
+      "description": "Makes the strongest case FOR an approach in structured debate",
+      "model": "opus",
+      "color": "green",
+      "tools": ["Read", "Write"],
+      "triggers": ["debate advocate", "argue for"],
+      "skills": ["forge-debate"],
+      "writes_to": "docs/forge/debate/<id>/advocate.md"
+    },
+    "skeptic": {
+      "name": "Debate Skeptic",
+      "description": "Probes weaknesses and challenges assumptions in structured debate",
+      "model": "opus",
+      "color": "red",
+      "tools": ["Read", "Write"],
+      "triggers": ["debate skeptic", "challenge assumptions"],
+      "skills": ["forge-debate"],
+      "writes_to": "docs/forge/debate/<id>/skeptic.md"
+    },
+    "operator": {
+      "name": "Debate Operator",
+      "description": "Assesses implementation feasibility in structured debate",
+      "model": "opus",
+      "color": "blue",
+      "tools": ["Read", "Write"],
+      "triggers": ["debate operator", "feasibility check"],
+      "skills": ["forge-debate"],
+      "writes_to": "docs/forge/debate/<id>/operator.md"
+    },
+    "synthesizer": {
+      "name": "Debate Synthesizer",
+      "description": "Reconciles positions and produces final decision in structured debate",
+      "model": "opus",
+      "color": "cyan",
+      "tools": ["Read", "Write"],
+      "triggers": ["debate synthesizer", "synthesize decision"],
+      "skills": ["forge-debate"],
+      "writes_to": "docs/forge/debate/<id>/synthesis.md"
+    }
+  }
+}

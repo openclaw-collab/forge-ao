@@ -1,0 +1,61 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "hooks/PreCompact/pre-compact.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "hooks/PreToolUse/block-env-edits.sh"
+          },
+          {
+            "type": "command",
+            "command": "hooks/PreToolUse/block-lockfile-edits.sh"
+          },
+          {
+            "type": "command",
+            "command": "hooks/PreToolUse/confirm-destructive.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "filter": "*.tsx|*.ts",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "hooks/PostToolUse/type-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "hooks/PostToolUse/lint-check.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "hooks/SessionStart/forge-init.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
