@@ -1,84 +1,210 @@
 ---
 name: forge:validate
-description: Verify implementation against requirements with evidence-based validation
+description: Evidence-based verification against requirements - AO-native
 disable-model-invocation: true
 ---
 
 # /forge:validate
 
-Quality gates with evidence-based validation against acceptance criteria.
+Quality gates with evidence-based validation against acceptance criteria. AO-native only - no standalone mode, no prompts, file-based state.
 
-## State Update Protocol
+---
 
-**ON ENTRY:**
+## Phase Entry Protocol
+
+### Step 1: Read Prerequisites
+
 ```bash
-# Update state to validate phase
-.claude/forge/scripts/forge-state.sh set-phase validate
+# Read these files before execution:
+cat docs/forge/knowledge/decisions.md
+cat docs/forge/knowledge/constraints.md
+cat docs/forge/knowledge/risks.md
+cat docs/forge/handoffs/build-to-validate.md
 ```
 
-**ON EXIT:**
-```bash
-# Mark phase complete and set next
-.claude/forge/scripts/forge-state.sh complete-phase
-.claude/forge/scripts/forge-state.sh set-next review
+### Step 2: Update active-workflow.md
 
-# Write artifact
-cat > docs/forge/validation-report.md << 'EOF'
-# Validation Report: [Objective]
-
-## Evidence Summary
-...
-EOF
+```yaml
+---
+workflow_id: "<workflow-id>"
+current_phase: validate
+phase_status: in_progress
+phase_started_at: "<ISO-timestamp>"
+completed_phases:
+  - brainstorm
+  - research
+  - design
+  - plan
+  - test
+  - build
+---
 ```
 
-## Process
+---
 
-1. **Run verifications** - TypeScript, tests, build
-2. **Gather evidence** - Command outputs
-3. **Check criteria** - Against plan
-4. **Document findings** - Write to `docs/forge/validation-report.md`
-5. **User approval** - If configured
+## Phase Execution
 
-## Validation Checklist
+### Step 1: Gather Evidence
 
-### Functional Validation
-- [ ] All requirements from plan implemented
-- [ ] Acceptance criteria met
-- [ ] Edge cases handled
-- [ ] Error scenarios tested
+Execute validation commands and capture output:
 
-### Technical Validation
-- [ ] TypeScript compiles without errors
-- [ ] All tests pass
-- [ ] Lint checks pass
-- [ ] Coverage threshold met
+```bash
+# TypeScript compilation
+echo "## TypeScript Compilation" >> docs/forge/phases/validate.md
+npm run type-check 2>&1 | tee -a docs/forge/phases/validate.md
 
-### Design Validation
-- [ ] UI matches design specs
-- [ ] Responsive behavior correct
-- [ ] Accessibility requirements met
-- [ ] Performance acceptable
+# Run tests
+echo "## Test Results" >> docs/forge/phases/validate.md
+npm test 2>&1 | tee -a docs/forge/phases/validate.md
 
-## Evidence Required
+# Coverage report
+echo "## Coverage Report" >> docs/forge/phases/validate.md
+npm test -- --coverage 2>&1 | tee -a docs/forge/phases/validate.md
 
-Collect evidence for each validation:
+# Lint checks
+echo "## Lint Results" >> docs/forge/phases/validate.md
+npm run lint 2>&1 | tee -a docs/forge/phases/validate.md
+
+# Build verification
+echo "## Build Verification" >> docs/forge/phases/validate.md
+npm run build 2>&1 | tee -a docs/forge/phases/validate.md
+```
+
+### Step 2: Generate Validation Document
+
+Write to `docs/forge/phases/validate.md`:
 
 ```markdown
-## Evidence
+---
+phase: validate
+generated_at: "<ISO-timestamp>"
+objective: "<from build handoff>"
+status: in_progress
+---
+
+# Validation: [Objective]
+
+## Context
+
+### From Build Phase
+[Summary from build-to-validate.md handoff]
+
+### Implementation Completed
+[What was built per plan]
+
+### Test Strategy Reference
+[From test-strategy.md]
+
+### Constraints Applied
+[List relevant constraints from constraints.md]
+
+## Evidence Collection
 
 ### TypeScript Compilation
+**Command:** `npm run type-check`
+**Status:** ✅ PASS / ❌ FAIL
+**Evidence:**
 ```
-[Command output showing success]
-```
-
-### Test Results
-```
-[Command output showing all tests pass]
+[Paste command output]
 ```
 
-### Design Compliance
-- [Screenshot or reference]
+### Unit Tests
+**Command:** `npm test -- --testPathPattern=unit`
+**Status:** ✅ PASS / ❌ FAIL
+**Pass Rate:** X%
+**Evidence:**
 ```
+[Paste test output]
+```
+
+### Integration Tests
+**Command:** `npm test -- --testPathPattern=integration`
+**Status:** ✅ PASS / ❌ FAIL
+**Pass Rate:** X%
+**Evidence:**
+```
+[Paste test output]
+```
+
+### E2E Tests
+**Command:** `npm run test:e2e`
+**Status:** ✅ PASS / ❌ FAIL
+**Pass Rate:** X%
+**Evidence:**
+```
+[Paste test output]
+```
+
+### Coverage Report
+**Command:** `npm test -- --coverage`
+**Status:** ✅ PASS / ❌ FAIL
+**Evidence:**
+```
+[Paste coverage table]
+```
+
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| Statements | 80% | X% | ✅/❌ |
+| Branches | 80% | X% | ✅/❌ |
+| Functions | 80% | X% | ✅/❌ |
+| Lines | 80% | X% | ✅/❌ |
+
+### Lint Checks
+**Command:** `npm run lint`
+**Status:** ✅ PASS / ❌ FAIL
+**Errors:** [N]
+**Warnings:** [N]
+**Evidence:**
+```
+[Paste lint output]
+```
+
+### Build Verification
+**Command:** `npm run build`
+**Status:** ✅ PASS / ❌ FAIL
+**Evidence:**
+```
+[Paste build output]
+```
+
+## Requirements Validation
+
+### Functional Requirements
+
+| Requirement | From Plan | Evidence | Status |
+|-------------|-----------|----------|--------|
+| [Req 1] | Plan Step X | [Test/Output] | ✅/⚠️/❌ |
+| [Req 2] | Plan Step Y | [Test/Output] | ✅/⚠️/❌ |
+
+### Acceptance Criteria
+
+| Criterion | Test Method | Evidence | Status |
+|-----------|-------------|----------|--------|
+| [Criterion 1] | [How tested] | [Result] | ✅/⚠️/❌ |
+| [Criterion 2] | [How tested] | [Result] | ✅/⚠️/❌ |
+
+## Design Validation
+
+### UI/UX Compliance
+| Spec | Verification | Status |
+|------|--------------|--------|
+| Matches design.md | [Screenshot/comparison] | ✅/❌ |
+| Responsive | [Test method] | ✅/❌ |
+| Accessible | [a11y test results] | ✅/❌ |
+
+### Performance Validation
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| Load time | <Xms | Yms | ✅/❌ |
+| Bundle size | <XKB | YKB | ✅/❌ |
+
+## Risk Validation
+
+| Risk ID | From Registry | Mitigation Verified | Status |
+|---------|---------------|---------------------|--------|
+| R001 | [Description] | [How verified] | ✅/⚠️/❌ |
+| R002 | [Description] | [How verified] | ✅/⚠️/❌ |
 
 ## Ralph Loop for Validation
 
@@ -97,88 +223,257 @@ LOOP until validation passes:
      - Generate report
 ```
 
-## Acceptance Criteria
+## Issues Found
 
-This phase is complete when:
-- [ ] TypeScript compiles without errors
-- [ ] All tests pass (unit, integration, e2e)
-- [ ] Lint checks pass
-- [ ] Coverage threshold met
-- [ ] Design specs verified
-- [ ] Acceptance criteria validated
-- [ ] Evidence collected and documented
-- [ ] `docs/forge/validation-report.md` written
-- [ ] State updated: phase=validate, status=completed
-- [ ] Next phase set to review
+| Issue | Severity | Location | Fix Required | Status |
+|-------|----------|----------|--------------|--------|
+| [Issue 1] | Critical/High/Med/Low | [File] | Yes/No | Open/Fixed |
+```
 
-## Phase Artifacts
+### Step 3: Execute Ralph Loop (if needed)
 
-**Writes to:** `docs/forge/validation-report.md`
+If any validation fails:
 
-### Artifact Structure
+```bash
+# Fix issues and re-run
+# Each fix must be committed
+
+# Example fix cycle:
+# 1. Analyze failure from evidence
+# 2. Fix issue
+# 3. git add .
+# 4. git commit -m "fix: [description]"
+# 5. Re-run validation
+# 6. Update evidence in validate.md
+```
+
+---
+
+## Phase Exit Protocol
+
+### Step 1: Write Final Validation Report
+
+Write to `docs/forge/validation-report.md`:
+
 ```markdown
+---
+phase: validate
+completed_at: "<ISO-timestamp>"
+objective: "<objective>"
+status: complete
+---
+
 # Validation Report: [Objective]
 
 ## Summary
 
-**Status:** ✅ PASSED / ❌ FAILED / ⚠️ PARTIAL
+**Overall Status:** ✅ PASSED / ❌ FAILED / ⚠️ PARTIAL
 **Date:** [ISO timestamp]
+**Build Reference:** [Commit hash]
+
+## Gate Results
+
+| Gate | Threshold | Actual | Status |
+|------|-----------|--------|--------|
+| TypeScript | 0 errors | [N] errors | ✅/❌ |
+| Unit Tests | 100% pass | [N]% | ✅/❌ |
+| Integration Tests | 100% pass | [N]% | ✅/❌ |
+| E2E Tests | 100% pass | [N]% | ✅/❌ |
+| Coverage | 80% | [N]% | ✅/❌ |
+| Lint | 0 errors | [N] errors | ✅/❌ |
+| Build | Success | [Status] | ✅/❌ |
 
 ## Requirements Validation
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| Req 1 | ✅ | [Evidence] |
-| Req 2 | ⚠️ | [Evidence with notes] |
+| [Req 1] | ✅/⚠️/❌ | [Reference to evidence] |
+| [Req 2] | ✅/⚠️/❌ | [Reference to evidence] |
 
-## Technical Validation
+**Requirements Met:** [N]/[Total] ([N]%)
 
-### TypeScript
-- Status: ✅ Pass
-- Errors: 0
-- Warnings: [count]
+## Issues Summary
 
-### Tests
-- Unit: N/N passed
-- Integration: N/N passed
-- E2E: N/N passed
-
-### Coverage
-- Overall: X%
-- Statements: X%
-- Branches: X%
-
-## Design Validation
-
-- UI matches specs: ✅/❌
-- Responsive: ✅/❌
-- Accessible: ✅/❌
-
-## Issues Found
-
-- [Issue 1 and severity]
-- [Issue 2 and severity]
+| Severity | Count | Resolved | Outstanding |
+|----------|-------|----------|-------------|
+| Critical | [N] | [N] | [N] |
+| High | [N] | [N] | [N] |
+| Medium | [N] | [N] | [N] |
+| Low | [N] | [N] | [N] |
 
 ## Recommendations
 
-- [Recommendation 1]
+- [Recommendation 1 if partial/fail]
 - [Recommendation 2]
+
+## Full Validation Document
+
+See: `docs/forge/phases/validate.md`
 ```
 
-## AO Mode Considerations
+### Step 2: Write Handoff Document
 
-In AO mode:
-- Validation runs within single session
-- Report is written to workspace for AO to track
-- Failed validations block workflow
-- AO can spawn separate validation session if needed
+Write to `docs/forge/handoffs/validate-to-review.md`:
 
-## Next Steps
+```markdown
+---
+from_phase: validate
+to_phase: review
+generated_at: "<ISO-timestamp>"
+workflow_id: "<workflow-id>"
+status: final
+---
 
-After validate:
-- `/forge:review` - Final code review
-- `/forge:build` - If fixes needed
+# Phase Handoff: validate → review
+
+## Summary
+
+### What Was Done
+Executed evidence-based validation against all quality gates.
+
+### Key Outcomes
+- Validation status: [Passed/Failed/Partial]
+- Gates passed: [N]/[Total]
+- Issues found: [N] ([Critical]/[High]/[Medium]/[Low])
+- Issues resolved: [N]
+
+## Validation Results
+
+### Gate Status
+| Gate | Result | Evidence Location |
+|------|--------|-------------------|
+| TypeScript | ✅/❌ | In validation report |
+| Tests | ✅/❌ | In validation report |
+| Coverage | ✅/❌ | In validation report |
+| Build | ✅/❌ | In validation report |
+
+### Requirements Status
+| Requirement | Validated | Evidence |
+|-------------|-----------|----------|
+| [Req 1] | Yes/No | [Reference] |
+
+## For Review Phase
+
+### Areas Requiring Review Focus
+| Area | Risk | Suggested Review Angle |
+|------|------|------------------------|
+| [Area 1] | High | Security/Performance |
+| [Area 2] | Med | Code quality |
+
+### Known Issues (Resolved)
+| Issue | Resolution | Commit |
+|-------|------------|--------|
+| [Issue] | [How fixed] | [Hash] |
+
+### Outstanding Issues (if partial)
+| Issue | Severity | Action |
+|-------|----------|--------|
+| [Issue] | Med/Low | Address in review or defer |
+
+## Artifacts Produced
+
+| Artifact | Location | Status |
+|----------|----------|--------|
+| Validation Detail | docs/forge/phases/validate.md | Complete |
+| Validation Report | docs/forge/validation-report.md | Complete |
+| Evidence | [Test outputs] | Captured |
+
+## Reference Materials
+
+- Phase output: `docs/forge/phases/validate.md`
+- Test Strategy: `docs/forge/test-strategy.md`
+- Implementation Plan: `docs/forge/phases/plan.md`
+- Risks: `docs/forge/knowledge/risks.md`
+
+## Sign-off
+
+Phase completed: Yes/Partial
+Blocked by: [None/Issues]
+Ready to proceed: Yes/Conditional
+```
+
+### Step 3: Update active-workflow.md
+
+```yaml
+---
+workflow_id: "<workflow-id>"
+current_phase: validate
+phase_status: completed
+phase_started_at: "<ISO-timestamp>"
+phase_completed_at: "<ISO-timestamp>"
+completed_phases:
+  - brainstorm
+  - research
+  - design
+  - plan
+  - test
+  - build
+  - validate
+next_phase: review
+---
+```
+
+---
+
+## Acceptance Criteria
+
+Phase completes when:
+
+- [x] Phase Entry Protocol executed (all reads completed)
+- [x] TypeScript compilation verified with evidence
+- [x] All tests executed with evidence
+- [x] Coverage measured with evidence
+- [x] Lint checks executed with evidence
+- [x] Build verified with evidence
+- [x] Requirements validated against plan
+- [x] Acceptance criteria checked
+- [x] Design specs verified
+- [x] Risks validated
+- [x] Issues documented and resolved (or deferred)
+- [x] Ralph loop completed (if failures)
+- [x] `docs/forge/phases/validate.md` written
+- [x] `docs/forge/validation-report.md` written
+- [x] `docs/forge/handoffs/validate-to-review.md` written
+- [x] `docs/forge/active-workflow.md` updated
+
+---
+
+## Next Phase
+
+Auto-proceeds to: `/forge:review` (code review)
+
+---
 
 ## Required Skill
 
 **REQUIRED:** `@forge-validate`
+
+---
+
+## Key Principles
+
+1. **Evidence-Based** - Every claim backed by command output
+2. **No standalone mode** - AO-native only
+3. **Non-interactive** - No prompts, no menus, file-based state only
+4. **Ralph Loop** - Fix failures, commit, re-validate
+5. **Hard Gates** - Failed gates block progression
+6. **Full Documentation** - All evidence captured
+
+---
+
+## File Structure
+
+```
+docs/forge/
+├── active-workflow.md              # Updated on entry/exit
+├── validation-report.md            # Final artifact
+├── phases/
+│   └── validate.md                # Detailed validation with evidence
+├── handoffs/
+│   ├── build-to-validate.md       # Input (read)
+│   └── validate-to-review.md      # Output (write)
+└── knowledge/
+    ├── decisions.md               # Read on entry
+    ├── constraints.md             # Read on entry
+    └── risks.md                   # Read on entry
+```

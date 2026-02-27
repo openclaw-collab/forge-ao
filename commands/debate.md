@@ -1,189 +1,212 @@
 ---
 name: forge:debate
-description: Execute or manage structured debate for current phase
-argument-hint: "[--status|--plan|--run|--check|--id <id>]"
+description: Check or regenerate debate artifacts (AO-native)
 disable-model-invocation: true
 ---
 
 # /forge:debate
 
-Manage structured debate for the current phase. Debates are mandatory gates that must complete before phase completion.
+Manage structured debate artifacts. In AO-native FORGE, debate execution is delegated to AO.
 
 ## Usage
 
 ```bash
 # Check debate status
-/forge:debate --status
+/forge:debate --status --id <debate-id>
 
-# Generate debate plan only (AO mode)
-/forge:debate --plan --id <debate-id>
+# Generate debate plan
+/forge:debate --plan --phase <phase> --topic "<topic>"
 
-# Run debate in current session (standalone)
-/forge:debate --run --id <debate-id>
-
-# Check if debate gate passes
-/forge:debate --check --id <debate-id>
-
-# Initialize new debate
-/forge:debate --init --phase <phase> --topic "<topic>"
+# Regenerate debate plan
+/forge:debate --regenerate --id <debate-id>
 ```
 
-## State Update Protocol
+## AO-Native Behavior
 
-**ON INIT:**
-```bash
-DEBATE_ID="${PHASE}-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "docs/forge/debate/$DEBATE_ID"
-.claude/forge/scripts/forge-debate.mjs init --id "$DEBATE_ID" --phase "$PHASE"
-```
+**FORGE never spawns debate agents.**
+
+FORGE responsibilities:
+1. Generate `debate-plan.md` with role prompts
+2. Output AO spawn commands (for reference)
+3. Check debate completion via file existence
+4. Extract decisions from synthesis.md
+
+AO responsibilities:
+1. Spawn role sessions (advocate, skeptic, operator, synthesizer)
+2. Execute debate in parallel
+3. Each role writes its assigned file
 
 ## Debate Lifecycle
 
-```
-INIT → PLAN → [AO Spawn / Standalone Run] → CHECK → COMPLETE
-         │                                    │
-         ▼                                    ▼
-   debate-plan.md                      All roles written?
-   (role prompts)                      └──▶ Gate passes
-```
-
-## Commands
-
-### `--status`
-
-Show current debate state:
-
-```
-Debate Status: brainstorm-20260115-143022
-═══════════════════════════════════════════════════
-Phase: brainstorm
-Topic: "Add user dashboard"
-Status: IN_PROGRESS
-
-Artifacts:
-  ✅ debate-plan.md     (exists)
-  ⏳ advocate.md        (pending)
-  ⏳ skeptic.md         (pending)
-  ⏳ operator.md        (pending)
-  ⏳ synthesis.md       (pending)
-
-Gate: NOT PASSED (3/5 artifacts)
-Next: Generate role outputs
-```
-
-### `--plan` (AO Mode)
-
-Generate debate plan without executing:
+### Phase 1: Generate Plan
 
 ```bash
-/forge:debate --plan --id brainstorm-20260115-143022
+/forge:debate --plan --phase brainstorm --topic "Authentication approach"
 ```
 
 Creates:
-- `docs/forge/debate/<id>/debate-plan.md`
+```
+docs/forge/debate/brainstorm-20260115-143022/
+└── debate-plan.md
+```
 
-Outputs AO spawn commands:
-```bash
+### Phase 2: AO Execution (External)
+
+FORGE outputs reference commands:
+
+```markdown
 ## AO Debate Execution Plan
 
-Run these commands to execute debate:
+The following roles should be spawned by AO:
+
+1. **Advocate**: Write advocate.md
+   Output: docs/forge/debate/brainstorm-20260115-143022/advocate.md
+
+2. **Skeptic**: Write skeptic.md
+   Output: docs/forge/debate/brainstorm-20260115-143022/skeptic.md
+
+3. **Operator**: Write operator.md
+   Output: docs/forge/debate/brainstorm-20260115-143022/operator.md
+
+4. **Synthesizer**: Write synthesis.md
+   Input: advocate.md, skeptic.md, operator.md
+   Output: docs/forge/debate/brainstorm-20260115-143022/synthesis.md
+```
+
+### Phase 3: Completion Detection
 
 ```bash
-ao spawn <project> "FORGE DEBATE: Write advocate.md for debate <id>"
-ao spawn <project> "FORGE DEBATE: Write skeptic.md for debate <id>"
-ao spawn <project> "FORGE DEBATE: Write operator.md for debate <id>"
-ao spawn <project> "FORGE DEBATE: Write synthesis.md for debate <id>"
-```
+/forge:debate --status --id brainstorm-20260115-143022
 ```
 
-### `--run` (Standalone Mode)
+Checks:
+- All required files exist
+- synthesis.md contains required sections
+- Returns: COMPLETE | INCOMPLETE
 
-Execute full debate in current session:
+### Phase 4: Decision Extraction
 
-```bash
-/forge:debate --run --id brainstorm-20260115-143022
+When debate completes, FORGE:
+1. Reads synthesis.md
+2. Extracts decisions and risks
+3. Appends to `docs/forge/knowledge/decisions.md`
+4. Updates `docs/forge/knowledge/risks.md`
+5. Unblocks phase in active-workflow.md
+
+## Status Output
+
+```markdown
+## Debate Status: brainstorm-20260115-143022
+
+**Phase:** brainstorm
+**Status:** INCOMPLETE
+
+### Artifacts
+| File | Status |
+|------|--------|
+| debate-plan.md | ✓ Complete |
+| advocate.md | ⏳ Pending |
+| skeptic.md | ⏳ Pending |
+| operator.md | ⏳ Pending |
+| synthesis.md | ⏳ Pending |
+
+### Gate Status
+**BLOCKED** - 1/5 artifacts complete
+
+Phase cannot proceed until synthesis.md exists.
 ```
 
-Executes sequentially:
-1. **Advocate** → writes `advocate.md`
-2. **Skeptic** → writes `skeptic.md`
-3. **Operator** → writes `operator.md`
-4. **Synthesizer** → writes `synthesis.md`
+## Debate Plan Format
 
-Each role runs in sequence with the system prompt from `debate-plan.md`.
+```yaml
+---
+debate_id: "brainstorm-20260115-143022"
+phase: "brainstorm"
+objective: "Select authentication approach"
+status: "pending"
+---
 
-### `--check`
+## Options Under Consideration
 
-Check if debate gate passes:
+1. **Option A**: JWT with refresh tokens
+2. **Option B**: Session-based auth
+3. **Option C**: OAuth2 only
 
-```bash
-/forge:debate --check --id brainstorm-20260115-143022
-# Returns: PASSED | FAILED
+## Role Prompts
+
+### Advocate
+Write advocate.md arguing FOR the leading option.
+Include: Core argument, strengths, comparative advantages.
+
+### Skeptic
+Write skeptic.md challenging assumptions.
+Include: Critical questions, failure modes, risks.
+
+### Operator
+Write operator.md assessing feasibility.
+Include: Resources, timeline, constraints.
+
+### Synthesizer
+Write synthesis.md reconciling positions.
+Include: Final decision, tradeoffs, kill-switch criteria.
+
+## Expected Outputs
+
+- advocate.md
+- skeptic.md
+- operator.md
+- synthesis.md
+
+## Completion Criteria
+
+Debate is complete when synthesis.md contains:
+- [ ] Final decision
+- [ ] Decision criteria
+- [ ] Kill-switch criteria
+- [ ] Fallback plan
+- [ ] Action items
 ```
 
-**Gate Criteria:**
-- All 5 required files exist
-- `synthesis.md` includes decision
-- `synthesis.md` includes kill-switch criteria
-- `synthesis.md` includes fallback plan
+## Blocking Behavior
 
-### `--init`
-
-Initialize new debate:
-
-```bash
-/forge:debate --init --phase brainstorm --topic "Add user dashboard"
-```
-
-Creates debate directory structure and initial plan template.
-
-## Debate Directory Structure
+Debate gates are blocking:
 
 ```
-docs/forge/debate/
-└── <phase>-<timestamp>/
-    ├── debate-plan.md      # Debate structure and role prompts
-    ├── advocate.md         # Case FOR the approach
-    ├── skeptic.md          # Concerns and risks
-    ├── operator.md         # Feasibility assessment
-    └── synthesis.md        # Final decision
+Attempting to complete brainstorm phase...
+
+⚠️  DEBATE GATE BLOCKING
+
+Debate synthesis not found.
+Phase cannot complete.
+
+Next: /forge:debate --status --id <id>
+Or: Wait for AO to complete debate execution
 ```
 
-## AO Mode Behavior
+## Triggers for Debate
 
-In AO mode (AO_SESSION set):
-- `--plan` generates debate plan and outputs AO commands
-- `--run` is disabled (FORGE never spawns debate agents internally)
-- AO executes `ao spawn` commands externally
-- FORGE waits for files and checks completion
+Debate is required when:
+1. **Brainstorm phase** - Always mandatory
+2. **Major decision** - Affects >3 components
+3. **Prior decision challenged** - New information
+4. **Risk score ≥ 6** - High×Medium or higher
 
-## Standalone Mode Behavior
+## Required Reads
 
-In standalone mode (no AO_SESSION):
-- `--plan` generates debate plan
-- `--run` executes full debate sequentially in session
-- All roles run in same session
-- No external spawning
+- `docs/forge/debate/<id>/debate-plan.md`
+- `docs/forge/debate/<id>/advocate.md`
+- `docs/forge/debate/<id>/skeptic.md`
+- `docs/forge/debate/<id>/operator.md`
+- `docs/forge/debate/<id>/synthesis.md`
 
-## Required Skills
+## Required Writes
 
-**REQUIRED:** `@forge-debate`
+- `docs/forge/debate/<id>/debate-plan.md`
+- `docs/forge/knowledge/decisions.md` (on completion)
+- `docs/forge/knowledge/risks.md` (on completion)
+- `.claude/forge/active-workflow.md` (unblock phase)
 
-## Integration with Phases
+## See Also
 
-Each phase can have a debate gate:
-
-| Phase | Debate Trigger | Purpose |
-|-------|---------------|---------|
-| brainstorm | Mandatory | Select best approach |
-| design | Optional | UI/UX tradeoffs |
-| plan | Optional | Implementation strategy |
-| review | Optional | Quality vs timeline |
-
-## Metadata Sync
-
-When AO_SESSION is set, debate status syncs to AO metadata:
-- `forge_debate_id`
-- `forge_debate_phase`
-- `forge_debate_status` (pending|running|complete)
-- `forge_debate_pending` (true|false)
+- `/forge:continue` - Resume after debate completes
+- `/forge:status` - Check workflow state

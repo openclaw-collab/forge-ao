@@ -1,305 +1,145 @@
 ---
 name: forge:continue
-description: Resume a paused or interrupted FORGE workflow from saved state
-argument-hint: "[optional: workflow phase to resume]"
+description: Resume FORGE workflow from last saved state (AO-native, non-interactive)
 disable-model-invocation: true
 ---
 
 # /forge:continue
 
-Resume a paused, interrupted, or saved FORGE workflow from its last known state.
+Resume a FORGE workflow from its last known state. Deterministic, file-based state recovery.
 
 ## Usage
 
 ```bash
-/forge:continue                    # Resume most recent workflow
-/forge:continue build              # Resume specific phase
-/forge:continue --list             # Show available saved states
-/forge:continue --archive          # Archive completed workflow
+/forge:continue              # Resume from active-workflow.md
+/forge:continue --phase=X    # Resume specific phase
 ```
 
-## State Detection
+## AO-Native State Detection
 
-### Automatic State Discovery
+FORGE reads `.claude/forge/active-workflow.md` to determine state:
 
-```
-/forge:continue
-
-🔍 Scanning for active workflows...
-
-Found: User Profile Feature (Build phase)
-├── Started: 2 days ago
-├── Last activity: 6 hours ago
-├── Completed: 3/5 tasks
-├── Current task: task-04-ui (pending)
-└── Context: Building user profile UI with React Hook Form
-
-Resume this workflow? [Y/n]
+```yaml
+---
+phase: "brainstorm"
+phase_status: "in_progress|blocked|completed"
+debate_status: "none|pending|complete"
+next_phase: "research"
+---
 ```
 
-### Multiple Workflows
+## Resumption Logic (Non-Interactive)
+
+### Case 1: Phase in_progress
 
 ```
-/forge:continue --list
+Reading active-workflow.md...
+Phase: brainstorm
+Status: in_progress
 
-Available Workflows:
-[1] User Profile Feature (Build phase) - 3/5 tasks complete
-[2] Payment Integration (Plan phase) - 2/4 tasks complete
-[3] Auth Refactor (Test phase) - 4/5 tasks complete
-
-Select workflow to resume (1-3):
+Actions:
+1. Read phase handoff from previous phase
+2. Read canonical knowledge (decisions.md, constraints.md)
+3. Read current phase output (if exists)
+4. Continue from last completed action
 ```
 
-## Resumption Process
-
-### Step 1: Read State
+### Case 2: Phase blocked (Debate)
 
 ```
-Reading workflow state...
-✓ Loaded .claude/forge/active-workflow.md
-✓ Phase: build
-✓ Status: in_progress
-✓ Last updated: 2026-02-26T18:00:00Z
+Reading active-workflow.md...
+Phase: brainstorm
+Status: blocked
+debate_status: pending
+debate_id: brainstorm-20260115-143022
+
+Actions:
+1. Check debate directory for completion
+2. If synthesis.md exists: extract decisions, unblock phase
+3. If incomplete: remain blocked, report status
 ```
 
-### Step 2: Display Context
+### Case 3: Phase completed
 
 ```
-═══════════════════════════════════════════════════
-Resuming: User Profile Feature
-═══════════════════════════════════════════════════
+Reading active-workflow.md...
+Phase: brainstorm
+Status: completed
+Next: research
 
-Phase: Build
-Progress: 60% (3/5 tasks)
-
-Completed:
-✓ task-01-init - Project setup
-✓ task-02-api - Backend API endpoints
-✓ task-03-auth - Authentication integration
-
-Current:
-⏳ task-04-ui - Profile UI components
-
-Pending:
-⏸ task-05-tests - Unit and integration tests
-
-Recent Decisions:
-• Using React Hook Form for validation
-• Avatar images stored in R2
-• Profile data cached for 5 minutes
-
-═══════════════════════════════════════════════════
+Actions:
+1. Verify phase handoff exists
+2. Begin next phase entry protocol
+3. Update active-workflow.md
 ```
 
-### Step 3: Resume Current Task
+## State Recovery Process
+
+1. **Read active-workflow.md**
+   - Extract phase, status, debate_state
+   - Validate frontmatter
+
+2. **Read canonical knowledge**
+   - `docs/forge/knowledge/decisions.md`
+   - `docs/forge/knowledge/constraints.md`
+   - `docs/forge/knowledge/assumptions.md`
+   - `docs/forge/knowledge/risks.md`
+
+3. **Read phase handoff** (if not first phase)
+   - `docs/forge/handoffs/<prev>-to-<current>.md`
+   - Extract TODO list and constraints
+
+4. **Determine next action**
+   - Based on phase_status and file existence
+   - No interactive prompts
+
+## Debate Blocking
+
+When debate is incomplete:
 
 ```
-Resuming task-04-ui...
+Status: BLOCKED on debate
+debate_id: brainstorm-20260115-143022
 
-Last checkpoint:
-├── Profile page component created
-├── Avatar upload implemented
-└── Form validation pending
+Missing artifacts:
+- advocate.md: pending
+- skeptic.md: pending
+- operator.md: pending
+- synthesis.md: pending
 
-Next steps:
-1. Complete form validation
-2. Add profile edit mode
-3. Implement save/cancel actions
-
-Continue from checkpoint? [Y/n/custom]
+Phase cannot complete until debate synthesis exists.
+FORGE will re-check on next /forge:continue
 ```
 
-## State Recovery Scenarios
+## Output Format
 
-### Scenario 1: Browser Crash
+```markdown
+## Workflow Resumption
 
-```
-User: /forge:continue
-FORGE: Detected incomplete session
+**Phase:** brainstorm
+**Status:** in_progress
+**Last Updated:** 2026-01-15T14:30:00Z
 
-Your browser crashed 2 hours ago during task-04-ui.
-All progress was auto-saved.
+### Context Loaded
+- ✓ decisions.md (3 active decisions)
+- ✓ constraints.md (2 hard constraints)
+- ✓ assumptions.md (1 open assumption)
+- ✓ risks.md (2 medium risks)
 
-Current state recovered:
-• 3 files modified (not committed)
-• Form validation 70% complete
-• No test changes since last checkpoint
+### From Previous Handoff
+**Locked Decisions:**
+- D1: Use React for frontend
 
-Resume from auto-save? [Y/n]
-```
+**Open Assumptions:**
+- A1: API will support pagination
 
-### Scenario 2: Multi-Day Workflow
+**TODO for this Phase:**
+1. [x] Define user personas
+2. [ ] Explore UI approaches
+3. [ ] Generate debate plan
 
-```
-/forge:continue
-
-Workflow started 3 days ago.
-Last worked on: Yesterday at 6pm
-
-Quick context refresh:
-• Building user profile feature
-• Currently on UI components (task-04)
-• React Hook Form for validation
-• Avatar upload to R2 complete
-
-Review full context? [Y/n]
-Resume directly? [Y/n]
-```
-
-### Scenario 3: Interrupted by Higher Priority
-
-```
-/forge:continue
-
-Active workflow found: User Profile Feature
-⚠️  Interrupted by: Hotfix - Auth Bug
-
-You switched to an urgent hotfix yesterday.
-The profile feature workflow was auto-paused.
-
-Options:
-[1] Resume profile feature
-[2] Check hotfix status
-[3] View both workflows
-```
-
-## Manual State Specification
-
-### Resume Specific Phase
-
-```bash
-/forge:continue plan
-
-Forcing resume of Plan phase...
-⚠️  Warning: Current workflow is in Build phase
-
-Options:
-[override] - Switch to Plan phase
-[continue] - Resume current Build phase
-[archive]  - Archive current, start Plan
-```
-
-### Resume From Archive
-
-```bash
-/forge:continue --from-archive user-profile-v1
-
-Loading archived workflow...
-✓ Found: docs/archive/user-profile-v1-workflow.md
-✓ Phase: validate
-✓ Status: completed
-
-This workflow was completed and archived.
-Options:
-[reopen]   - Reopen as active workflow
-[clone]    - Create new workflow from this template
-[view]     - View summary only
-```
-
-## State Management
-
-### During Session
-
-```
-Working on task-04-ui...
-Progress auto-saved every 5 minutes.
-
-Current session:
-├── Duration: 2 hours
-├── Files modified: 5
-├── Tests added: 3
-└── Last save: 3 minutes ago
-```
-
-### Pre-Compact Hook
-
-```
-⚠️  Context at 10% - Triggering pre-compact save...
-
-Saving workflow state:
-✓ Task progress recorded
-✓ Decisions captured
-✓ Context summarized
-✓ State document updated
-
-You can resume with /forge:continue
-```
-
-### Session End
-
-```
-Session ending...
-
-Auto-save workflow state? [Y/n]
-[Y] - Save and exit (resume with /forge:continue)
-[n]  - Exit without saving (risk losing progress)
-```
-
-## Context Refresh
-
-### Decision Review
-
-```
-/forge:continue --refresh
-
-Key decisions in this workflow:
-1. React Hook Form for validation
-   Rationale: Simpler than Formik, built-in TypeScript
-
-2. R2 for avatar storage
-   Rationale: Cheaper than S3, CDN integration
-
-3. No optimistic updates
-   Rationale: Prevent stale data issues
-
-Review all decisions? [Y/n]
-```
-
-### Progress Summary
-
-```
-/forge:continue --summary
-
-User Profile Feature
-═══════════════════
-Timeline:
-Day 1: Plan phase complete (4 hours)
-Day 2: Design phase complete (3 hours)
-Day 3: Build phase in progress (5 hours so far)
-
-Velocity: ~1 task per 2 hours
-Estimated remaining: 4 hours
-
-Blockers: None
-Risks: API rate limiting on avatar uploads
-```
-
-## Integration with Other Commands
-
-### After Continue
-
-```
-/forge:continue
-✓ Resumed task-04-ui
-
-Options:
-/forge:status     - View detailed progress
-/forge:test       - Run tests for current task
-/forge:pause      - Pause and save state
-/forge:abort      - Abandon workflow
-```
-
-### With Test Integration
-
-```
-/forge:continue
-✓ Resumed task-04-ui
-
-Running test checkpoint...
-✓ 12 tests passing
-⚠️  2 tests failing (profile validation)
-
-Fix tests before continuing? [Y/n]
+### Next Action
+Generate debate plan for brainstorm phase.
 ```
 
 ## Error Handling
@@ -307,92 +147,38 @@ Fix tests before continuing? [Y/n]
 ### No Active Workflow
 
 ```
-/forge:continue
+Error: No active workflow found
+Location checked: .claude/forge/active-workflow.md
 
-❌ No active workflow found
-
-No saved state in .claude/forge/
-
-Start a new workflow:
+To start a new workflow:
 /forge:start "feature description"
-
-Or create from template:
-/forge:template
 ```
 
 ### Corrupted State
 
 ```
-/forge:continue
+Error: Invalid frontmatter in active-workflow.md
+Attempting recovery from phase output files...
 
-⚠️  State file appears corrupted
+Recovered: Phase appears to be "design"
+Last artifact: docs/forge/phases/design.md
 
-Attempting recovery from backup...
-✓ Recovered from snapshot: 2026-02-26T14:30:00Z
-
-⚠️  2 hours of work may be missing
-Last known good state: task-03-auth complete
-
-Continue from recovered state? [Y/n]
+Recommend: /forge:start to reinitialize
 ```
 
-### Concurrent Modification
+## Required Reads
 
-```
-/forge:continue
+- `.claude/forge/active-workflow.md`
+- `docs/forge/knowledge/decisions.md`
+- `docs/forge/knowledge/constraints.md`
+- `docs/forge/handoffs/<prev>-to-<current>.md` (if applicable)
 
-⚠️  Workflow state modified externally
+## Required Writes
 
-State was updated 10 minutes ago on another machine.
-
-Options:
-[local]   - Use your local state
-[remote]  - Use the newer remote state
-[merge]   - Attempt to merge both states
-[view]    - Compare differences
-```
-
-## State File Format
-
-```yaml
----
-workflow_id: user-profile-2026-02-24
-phase: build
-status: in_progress
-started_at: 2026-02-24T10:00:00Z
-last_updated: 2026-02-26T18:30:00Z
-
-progress:
-  completed_tasks:
-    - task-01-init
-    - task-02-api
-    - task-03-auth
-  current_task: task-04-ui
-  pending_tasks:
-    - task-05-tests
-
-context:
-  feature: "User Profile"
-  branch: "feat/user-profile"
-  decisions:
-    - "React Hook Form for validation"
-    - "R2 for avatar storage"
-  blockers: []
-
-session:
-  total_hours: 12
-  current_session_hours: 2.5
-  last_commit: "abc123"
----
-```
-
-## Required Skill
-
-**REQUIRED:** `@state-tracking`
+- Updates to `.claude/forge/active-workflow.md` (if unblocking)
+- Phase output files (as work progresses)
 
 ## See Also
 
-- `/forge:start` - Start new workflow
-- `/forge:pause` - Pause current workflow
-- `/forge:status` - View workflow status
-- `/forge:abort` - Abandon workflow
+- `/forge:start` - Initialize new workflow
+- `/forge:status` - View workflow state

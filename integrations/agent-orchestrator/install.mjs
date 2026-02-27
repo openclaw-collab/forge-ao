@@ -3,7 +3,7 @@
  * FORGE Agent Orchestrator Integration Installer
  *
  * Installs FORGE hooks and configuration into an AO workspace.
- * Usage: node install.mjs [--workspace <path>] [--mode ao|standalone]
+ * Usage: node install.mjs [--workspace <path>]
  */
 
 import { existsSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, chmodSync, readdirSync } from 'fs';
@@ -17,17 +17,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
-    workspace: process.cwd(),
-    mode: null // auto-detect
+    workspace: process.cwd()
   };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--workspace':
         options.workspace = args[++i] || process.cwd();
-        break;
-      case '--mode':
-        options.mode = args[++i];
         break;
       case '--help':
       case '-h':
@@ -36,20 +32,12 @@ Usage: node install.mjs [options]
 
 Options:
   --workspace <path>   Workspace directory (default: cwd)
-  --mode <ao|standalone>  Installation mode (default: auto-detect)
   --help, -h           Show this help
 
-Auto-detection:
-  If AO_SESSION environment variable is set, mode defaults to 'ao'.
-  Otherwise, defaults to 'standalone'.
+FORGE is AO-native. Installation always configures AO mode.
 `);
         process.exit(0);
     }
-  }
-
-  // Auto-detect mode
-  if (!options.mode) {
-    options.mode = process.env.AO_SESSION ? 'ao' : 'standalone';
   }
 
   return options;
@@ -123,13 +111,30 @@ function findForgeRoot() {
   return resolve(__dirname, '../..');
 }
 
+// Create knowledge template file
+function createKnowledgeTemplate(filePath, title, description) {
+  const content = `# ${title}
+
+${description}
+
+## Overview
+
+<!-- Add high-level information here -->
+
+---
+
+*Last updated: ${new Date().toISOString().split('T')[0]}*
+`;
+  writeFileSync(filePath, content);
+}
+
 // Main installation
 async function main() {
   const options = parseArgs();
   const workspaceRoot = getWorkspaceRoot(options.workspace);
   const forgeRoot = findForgeRoot();
 
-  console.log(`Installing FORGE in ${options.mode} mode...`);
+  console.log(`Installing FORGE (AO-native)...`);
   console.log(`  Workspace: ${workspaceRoot}`);
   console.log(`  FORGE root: ${forgeRoot}`);
 
@@ -298,17 +303,51 @@ Use \`/forge:start\` or \`/forge:help\` to begin.
     console.log('  ✓ Installed forge-state.sh');
   }
 
-  // Create docs/forge directory
-  ensureDir(join(workspaceRoot, 'docs/forge'));
+  // Create docs/forge directory structure (AO-native knowledge structure)
+  const docsForgeDir = join(workspaceRoot, 'docs/forge');
+  ensureDir(docsForgeDir);
+
+  // Create knowledge directory with template files
+  const knowledgeDir = join(docsForgeDir, 'knowledge');
+  ensureDir(knowledgeDir);
+
+  const knowledgeFiles = {
+    'brief.md': ['Project Brief', 'High-level project overview, goals, and scope.'],
+    'assumptions.md': ['Assumptions', 'Key assumptions made during planning and development.'],
+    'decisions.md': ['Decisions', 'Architecture and design decisions with rationale.'],
+    'constraints.md': ['Constraints', 'Technical, business, and resource constraints.'],
+    'risks.md': ['Risks', 'Identified risks and mitigation strategies.'],
+    'glossary.md': ['Glossary', 'Domain terms and definitions.'],
+    'traceability.md': ['Traceability', 'Requirements traceability and mapping.']
+  };
+
+  for (const [filename, [title, description]] of Object.entries(knowledgeFiles)) {
+    const filePath = join(knowledgeDir, filename);
+    if (!existsSync(filePath)) {
+      createKnowledgeTemplate(filePath, title, description);
+    }
+  }
+  console.log('  ✓ Created docs/forge/knowledge/ with templates');
+
+  // Create phases directory
+  const phasesDir = join(docsForgeDir, 'phases');
+  ensureDir(phasesDir);
+  console.log('  ✓ Created docs/forge/phases/');
+
+  // Create handoffs directory
+  const handoffsDir = join(docsForgeDir, 'handoffs');
+  ensureDir(handoffsDir);
+  console.log('  ✓ Created docs/forge/handoffs/');
+
+  // Create debate directory
+  const debateDir = join(docsForgeDir, 'debate');
+  ensureDir(debateDir);
+  console.log('  ✓ Created docs/forge/debate/');
 
   console.log('\n✅ FORGE installation complete!');
   console.log(`\nNext steps:`);
   console.log(`  1. Start a workflow: /forge:start`);
-  if (options.mode === 'ao') {
-    console.log(`  2. FORGE metadata will sync to AO dashboard`);
-  } else {
-    console.log(`  2. FORGE will work in standalone mode`);
-  }
+  console.log(`  2. FORGE metadata will sync to AO dashboard`);
 }
 
 main().catch(err => {

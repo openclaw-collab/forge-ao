@@ -1,241 +1,174 @@
 ---
 name: forge:start
-description: Start the full FORGE 10-phase workflow with AO-native debate gates
+description: Initialize FORGE workflow and knowledge structure (AO-native)
 disable-model-invocation: true
 ---
 
 # /forge:start
 
-**Entry point for the AO-native FORGE workflow.** Auto-detects workspace state and guides through all 10 phases with mandatory debate gates.
-
-## CRITICAL RULE: No Internal Subagents in AO Mode
-
-**In AO mode (AO_SESSION set), FORGE NEVER spawns internal subagents.**
-
-FORGE only:
-1. Generates debate plans and options
-2. Outputs `ao spawn` commands for AO to execute
-3. Writes artifacts to workspace
-4. Syncs metadata to AO
-
-AO handles:
-- Session lifecycle
-- Debate execution (via `ao run-debate` or `ao spawn`)
-- CI/review routing
-- Parallel task orchestration
-
-## State Update Protocol
-
-**ON ENTRY:**
-```bash
-# Initialize workflow state if not exists
-.claude/forge/scripts/forge-state.sh init \
-  --objective "$ARGUMENTS" \
-  --phase initialize \
-  --branch "$(git branch --show-current)"
-
-# Set phase to initialize
-.claude/forge/scripts/forge-state.sh set-phase initialize
-```
-
-**ON EXIT:**
-```bash
-# Mark phase complete and set next
-.claude/forge/scripts/forge-state.sh complete-phase
-.claude/forge/scripts/forge-state.sh set-next brainstorm
-```
+**Entry point for AO-native FORGE workflow.** Creates canonical knowledge structure and initializes workflow state.
 
 ## Usage
 
 ```bash
-# Start full workflow (auto-detects mode)
 /forge:start "Build a user dashboard"
-
-# Start with options
-/forge:start "API integration" --level=intelligent --karthy-strict
 ```
 
-## AO Mode Detection
+## Behavior
 
-FORGE detects AO automatically via `AO_SESSION`:
+FORGE initializes the workspace for AO-native execution:
+1. Creates canonical knowledge structure
+2. Initializes active-workflow.md
+3. Captures project brief
+4. Prepares for debate-driven phases
 
-```bash
-if [ -n "$AO_SESSION" ]; then
-  MODE="ao"
-  echo "AO mode: generating plans, AO executes"
-  # NEVER spawn internal subagents
-else
-  MODE="standalone"
-  echo "Standalone mode: full self-contained execution"
-fi
+## No Subagent Spawning
+
+**FORGE never spawns subagents.**
+
+All "parallel" work is output as AO spawn plans for later execution.
+
+## Workflow Initialization
+
+### Step 1: Create Knowledge Structure
+
+```
+docs/forge/knowledge/
+├── brief.md          # Project context
+├── assumptions.md    # Assumption registry
+├── decisions.md      # Decision registry
+├── constraints.md    # Constraint registry
+├── risks.md          # Risk registry
+├── glossary.md       # Domain terms
+└── traceability.md   # Requirements traceability
 ```
 
-### AO Mode Behavior (REQUIRED)
+### Step 2: Initialize State
 
-| Behavior | AO Mode | Standalone |
-|----------|---------|------------|
-| Internal subagents | **NEVER** | Can self-debate sequentially |
-| Debate execution | AO spawns role sessions | FORGE runs roles in sequence |
-| Parallel tasks | Generate AO spawn plan | Execute in session |
-| Metadata sync | Yes (AO dashboard) | No |
-| State location | Workspace `.claude/forge/` | Same |
+```yaml
+---
+workflow: forge
+version: "2.0.0"
+objective: "Build a user dashboard"
+phase: "init"
+phase_status: "in_progress"
+started_at: "2026-01-15T10:30:00Z"
+last_updated: "2026-01-15T10:30:00Z"
+completed_phases: []
+next_phase: "brainstorm"
+debate_id: ""
+debate_status: "none"
+---
 
-## Full 10-Phase Flow with Debate Gates
+## Current Phase Context
+Initializing FORGE workflow for: Build a user dashboard
+
+## Blockers
+None
+
+## Next Actions
+1. Create knowledge structure
+2. Write init-to-brainstorm handoff
+3. Complete initialization
+```
+
+### Step 3: Write Handoff
+
+Creates: `docs/forge/handoffs/init-to-brainstorm.md`
+
+## Phase Flow
 
 ```
 Initialize ──▶ Brainstorm (Debate Gate) ──▶ Research ──▶ Design ──▶ Plan
     │                                               ▲
     ▼                                               │
 Learn ◀── Review ◀── Validate ◀── Build ◀── Test ◀─┘
-
-Debate Gates (mandatory):
-- Brainstorm: Must complete debate before proceeding
 ```
 
 ## Phase Overview
 
 | Phase | Command | Output | Debate Gate |
 |-------|---------|--------|-------------|
-| Initialize | `/forge:start` | `active-workflow.md` | No |
-| **Brainstorm** | `/forge:brainstorm` | `brainstorm.md` + debate artifacts | **YES (mandatory)** |
-| Research | `/forge:research` | `research.md` | No |
-| Design | `/forge:design` | `design.md` | Optional |
-| Plan | `/forge:plan` | `plan.md` | Optional |
-| Test | `/forge:test` | `test-strategy.md` | No |
-| Build | `/forge:build` | `build-log.md` | No |
-| Validate | `/forge:validate` | `validation-report.md` | No |
-| Review | `/forge:review` | `review-report.md` | Optional |
-| Learn | `/forge:learn` | `learnings.md` | No |
+| Initialize | `/forge:start` | Knowledge structure | No |
+| **Brainstorm** | `/forge:brainstorm` | brainstorm.md + debate | **YES (mandatory)** |
+| Research | `/forge:research` | research.md | Conditional |
+| Design | `/forge:design` | design.md | Conditional |
+| Plan | `/forge:plan` | plan.md | Conditional |
+| Test | `/forge:test` | test-strategy.md | No |
+| Build | `/forge:build` | build-log.md | No (test gate) |
+| Validate | `/forge:validate` | validation-report.md | Conditional |
+| Review | `/forge:review` | review-report.md | Conditional |
+| Learn | `/forge:learn` | learnings.md | No |
 
-## Brainstorm Debate Gate (Mandatory)
+## Debate Gate (Mandatory in Brainstorm)
 
-The Brainstorm phase has a **mandatory debate gate** that must pass before completion.
+Brainstorm phase requires structured debate:
 
-### AO Mode Flow:
+1. FORGE generates debate plan
+2. AO spawns role sessions externally
+3. FORGE blocks until synthesis exists
+4. FORGE extracts decisions and proceeds
 
-```bash
-# 1. FORGE generates options
-/forge:brainstorm "Add user dashboard"
-# Creates: docs/forge/brainstorm-options.md
+## Design Rule
 
-# 2. FORGE generates debate plan
-# Creates: docs/forge/debate/brainstorm-<id>/debate-plan.md
+**System Design must complete before UI/UX Design.**
 
-# 3. FORGE outputs AO commands (does NOT spawn)
-echo "Execute debate via:"
-echo "  ao run-debate --id brainstorm-<id> --mode parallel"
+Design phase has two layers:
+1. System Design (architecture, components, data, APIs, auth, failure modes)
+2. UI/UX Design (user flows, interfaces, interactions)
 
-# 4. AO executes debate (external to FORGE session)
-# Spawns: advocate, skeptic, operator, synthesizer sessions
+## Build Gate
 
-# 5. FORGE detects completion and finalizes
-# Reads debate artifacts, writes final brainstorm.md
+Build phase requires:
+- All tests pass before completion
+- Internalized Ralph loop (TDD)
+- No exceptions
+
+## Exit Criteria
+
+Initialization complete when:
+- [ ] All knowledge files exist
+- [ ] active-workflow.md initialized
+- [ ] Handoff written: init-to-brainstorm
+
+## Status Output
+
+```markdown
+## FORGE Initialized
+
+**Objective:** Build a user dashboard
+**Phase:** init → brainstorm
+**Status:** Complete
+
+### Created
+- docs/forge/knowledge/brief.md
+- docs/forge/knowledge/assumptions.md
+- docs/forge/knowledge/decisions.md
+- docs/forge/knowledge/constraints.md
+- docs/forge/knowledge/risks.md
+- docs/forge/knowledge/glossary.md
+- docs/forge/knowledge/traceability.md
+- docs/forge/handoffs/init-to-brainstorm.md
+- .claude/forge/active-workflow.md
+
+### Next
+Run `/forge:brainstorm` to begin exploration with mandatory debate.
 ```
 
-### Standalone Mode Flow:
+## Required Writes
 
-```bash
-# 1. FORGE generates options
-/forge:brainstorm "Add user dashboard"
+- `docs/forge/knowledge/brief.md`
+- `docs/forge/knowledge/assumptions.md`
+- `docs/forge/knowledge/decisions.md`
+- `docs/forge/knowledge/constraints.md`
+- `docs/forge/knowledge/risks.md`
+- `docs/forge/knowledge/glossary.md`
+- `docs/forge/knowledge/traceability.md`
+- `docs/forge/handoffs/init-to-brainstorm.md`
+- `.claude/forge/active-workflow.md`
 
-# 2. FORGE runs self-debate sequentially
-# Advocate → Skeptic → Operator → Synthesizer
-# Each writes to debate directory
+## See Also
 
-# 3. FORGE finalizes
-# Writes final brainstorm.md
-```
-
-## Automatic Phase Completion
-
-Each phase auto-completes when:
-- Phase artifact written to `docs/forge/`
-- Acceptance criteria met
-- **Debate gate passed** (if applicable)
-
-To pause: `/forge:pause`
-To resume: `/forge:continue`
-
-## Workspace Structure Created
-
-```
-workspace/
-├── .claude/
-│   ├── forge/
-│   │   ├── active-workflow.md          # State file
-│   │   ├── forge-system-prompt.md      # AO protocol
-│   │   └── hooks/                      # Workspace-local hooks
-│   └── settings.json                   # Hook config
-└── docs/forge/
-    ├── brainstorm.md                   # Phase artifacts
-    ├── research.md
-    ├── design.md
-    ├── plan.md
-    ├── debate/                         # Debate artifacts
-    │   └── brainstorm-<id>/
-    │       ├── debate-plan.md
-    │       ├── advocate.md
-    │       ├── skeptic.md
-    │       ├── operator.md
-    │       └── synthesis.md
-    └── ...
-```
-
-## Acceptance Criteria
-
-This phase is complete when:
-- [ ] FORGE personalized for the project
-- [ ] `.claude/forge/active-workflow.md` initialized
-- [ ] Project type detected
-- [ ] Next phase (brainstorm) set
-- [ ] Debate directory structure created
-- [ ] `docs/forge/initialization.md` written (optional)
-
-## Status Check
-
-```bash
-/forge:status
-
-Current Status:
-├── Phase 1: Initialize     ✅ Complete
-├── Phase 2: Brainstorm     🔄 In Progress
-│   └── Debate Gate:        ⏳ Pending
-│       ├── debate-plan.md  ✅
-│       ├── advocate.md     ⏳
-│       ├── skeptic.md      ⏳
-│       ├── operator.md     ⏳
-│       └── synthesis.md    ⏳
-├── Phase 3: Research       ⏳ Pending
-...
-```
-
-## Required Skills
-
-- `@forge-init` - Workspace detection
-- `@forge-help` - Phase routing
-- `@forge-config` - Personalization
-
-## Exit Points
-
-- Workflow completes automatically after Learn phase
-- Use `/forge:pause` to pause at any point
-- Resume with `/forge:continue`
-- Work preserved in `docs/forge/`
-
-## AO Integration Commands
-
-When running under AO:
-
-```bash
-# Check debate status
-/forge:debate --status
-
-# Generate debate plan for AO execution
-/forge:debate --plan --id <debate-id>
-
-# AO executes externally:
-#   ao run-debate --id <debate-id>
-
-# Continue after debate completes
-/forge:continue
-```
+- `/forge:brainstorm` - Next phase (mandatory debate)
+- `/forge:continue` - Resume workflow
+- `/forge:status` - Check state

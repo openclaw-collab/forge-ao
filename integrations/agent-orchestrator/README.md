@@ -1,28 +1,23 @@
 # FORGE Agent Orchestrator Integration
 
-This integration package adapts FORGE to run natively within Agent Orchestrator (AO) workspaces.
+**AO-Native Workflow Plugin - Version 2.0.0**
 
-## Overview
+This integration enables FORGE to run as an AO-native workflow system. FORGE is designed exclusively for Agent Orchestrator - there is no standalone mode.
 
-When FORGE runs inside an AO-managed session:
-- It operates on the workspace (git repo), not the plugin directory
-- It writes workflow state to `.claude/forge/active-workflow.md`
-- It syncs metadata with AO for dashboard visibility
-- It avoids spawning subagents (AO manages session lifecycle)
+## Core Principles
+
+1. **Files are the source of truth** - All state lives in the workspace
+2. **FORGE generates, AO executes** - Debate plans are generated; AO spawns role sessions
+3. **Blocking debate gates** - Phases cannot complete until debate synthesis exists
+4. **Deterministic resumption** - `/forge:continue` works from file state alone
 
 ## Installation
 
 ### From within an AO workspace
 
 ```bash
-# Auto-detect AO mode (checks for AO_SESSION env)
+# Install FORGE integration
 node /path/to/forge/integrations/agent-orchestrator/install.mjs
-
-# Explicit AO mode
-node /path/to/forge/integrations/agent-orchestrator/install.mjs --mode ao
-
-# Standalone mode (normal Claude Code usage)
-node /path/to/forge/integrations/agent-orchestrator/install.mjs --mode standalone
 ```
 
 ### Via AO project configuration
@@ -40,86 +35,218 @@ projects:
 
 ## What Gets Installed
 
-1. **Hooks** → `.claude/forge/hooks/`
-   - AO metadata sync hook
-   - FORGE lifecycle hooks
+1. **System Prompt** → `.claude/forge/forge-system-prompt.md`
+   - AO-native FORGE protocol
+   - No subagent spawning rules
+   - Phase entry/exit protocols
+
+2. **Knowledge Structure** → `docs/forge/knowledge/`
+   - `brief.md` - Project context
+   - `decisions.md` - Immutable decision registry
+   - `constraints.md` - Hard and soft constraints
+   - `assumptions.md` - Validated/invalidated assumptions
+   - `risks.md` - Risk registry
+   - `glossary.md` - Domain terms
+   - `traceability.md` - Requirements mapping
+
+3. **State File** → `.claude/forge/active-workflow.md`
+   - Current phase and status
+   - Debate state tracking
+   - Completion tracking
+
+4. **Hooks** → Workspace `.claude/`
+   - PreCompact hook for session recovery
    - Safety hooks (env/lockfile protection)
 
-2. **Settings** → `.claude/settings.json`
-   - Merged with existing config
-   - PostToolUse hooks for AO sync and FORGE checks
-   - SessionStart hook for FORGE init
+## Workflow Phases
 
-3. **System Prompt** → `.claude/forge/forge-system-prompt.md`
-   - AO-optimized FORGE protocol
-   - Referenced by `agentConfig.systemPromptFile`
+```
+Initialize → Brainstorm (Debate Gate) → Research → Design → Plan → Test → Build → Validate → Review → Learn
+```
 
-4. **State Directory** → `.claude/forge/`
-   - `active-workflow.md` - Current workflow state
-   - `snapshots/` - Session checkpoints
-   - `archive/` - Completed workflows
+### Debate Gate (Mandatory in Brainstorm)
 
-## AO Environment Variables
+Brainstorm phase requires structured debate:
 
-FORGE detects and uses these AO-injected variables:
+1. **FORGE generates debate plan**
+   - Location: `docs/forge/debate/brainstorm-{timestamp}/debate-plan.md`
+
+2. **AO spawns debate roles**
+   - Advocate writes: `advocate.md`
+   - Skeptic writes: `skeptic.md`
+   - Operator writes: `operator.md`
+   - Synthesizer writes: `synthesis.md`
+
+3. **FORGE blocks until complete**
+   - Phase status: `blocked`
+   - Debate status: `pending`
+   - Resumes when `synthesis.md` exists
+
+4. **FORGE extracts decisions**
+   - Appends to `docs/forge/knowledge/decisions.md`
+   - Updates `docs/forge/knowledge/risks.md`
+   - Proceeds to next phase
+
+## File Structure
+
+```
+workspace/
+├── .claude/
+│   └── forge/
+│       ├── forge-system-prompt.md
+│       └── active-workflow.md
+└── docs/
+    └── forge/
+        ├── knowledge/
+        │   ├── brief.md
+        │   ├── decisions.md
+        │   ├── constraints.md
+        │   ├── assumptions.md
+        │   ├── risks.md
+        │   ├── glossary.md
+        │   └── traceability.md
+        ├── phases/
+        │   ├── brainstorm.md
+        │   ├── research.md
+        │   ├── design.md
+        │   ├── plan.md
+        │   ├── test.md
+        │   ├── build.md
+        │   ├── validate.md
+        │   ├── review.md
+        │   └── learn.md
+        ├── handoffs/
+        │   ├── init-to-brainstorm.md
+        │   ├── brainstorm-to-research.md
+        │   ├── research-to-design.md
+        │   ├── design-to-plan.md
+        │   ├── plan-to-test.md
+        │   ├── test-to-build.md
+        │   ├── build-to-validate.md
+        │   ├── validate-to-review.md
+        │   └── review-to-learn.md
+        └── debate/
+            └── brainstorm-{timestamp}/
+                ├── debate-plan.md
+                ├── advocate.md
+                ├── skeptic.md
+                ├── operator.md
+                └── synthesis.md
+```
+
+## Commands
+
+| Command | Phase | Debate Gate |
+|---------|-------|-------------|
+| `/forge:start` | Initialize | No |
+| `/forge:brainstorm` | Brainstorm | **Mandatory** |
+| `/forge:research` | Research | Conditional |
+| `/forge:design` | Design | Conditional |
+| `/forge:plan` | Plan | Conditional |
+| `/forge:test` | Test Strategy | No |
+| `/forge:build` | Build | Test gate |
+| `/forge:validate` | Validate | Conditional |
+| `/forge:review` | Review | Conditional |
+| `/forge:learn` | Learn | No |
+| `/forge:continue` | Resume | - |
+| `/forge:status` | Check state | - |
+
+## State Management
+
+### Active Workflow File
+
+`.claude/forge/active-workflow.md`:
+
+```yaml
+---
+workflow: forge
+version: "2.0.0"
+objective: "Build user dashboard"
+phase: brainstorm
+phase_status: in_progress|blocked|completed
+started_at: "2026-01-15T10:30:00Z"
+last_updated: "2026-01-15T11:00:00Z"
+completed_phases: [init]
+next_phase: research
+debate_id: brainstorm-20260115-143022
+debate_status: pending
+---
+
+## Current Phase Context
+[Summary of current work]
+
+## Blockers
+[Any blockers preventing completion]
+
+## Next Actions
+[Ordered list of remaining actions]
+```
+
+## Session Resumption
+
+When a session is interrupted:
+
+1. User runs `/forge:continue`
+2. FORGE reads `active-workflow.md`
+3. FORGE reads canonical knowledge
+4. FORGE reads phase handoff
+5. FORGE determines next action from file state
+6. No chat context required
+
+## Debate Role Agents
+
+AO spawns these agents during debate:
+
+- **@advocate** - Writes `docs/forge/debate/{id}/advocate.md`
+- **@skeptic** - Writes `docs/forge/debate/{id}/skeptic.md`
+- **@operator** - Writes `docs/forge/debate/{id}/operator.md`
+- **@synthesizer** - Writes `docs/forge/debate/{id}/synthesis.md`
+
+FORGE never spawns these agents. It generates the debate plan and detects completion via file existence.
+
+## Environment Variables
+
+FORGE uses these AO-injected variables:
 
 | Variable | Purpose |
 |----------|---------|
-| `AO_SESSION` | Unique session identifier |
-| `AO_DATA_DIR` | Path to AO metadata directory |
-| `AO_SESSION_NAME` | Human-readable session name |
-| `AO_ISSUE_ID` | Associated issue ID (if any) |
-
-## Workflow State Sync
-
-When `AO_SESSION` and `AO_DATA_DIR` are present, FORGE automatically syncs:
-
-- `forge_phase` - Current phase (brainstorm, research, etc.)
-- `forge_status` - in_progress, paused, completed, failed
-- `forge_objective` - Current objective
-- `forge_next` - Next recommended action
-
-These appear in the AO dashboard for visibility.
-
-## Differences from Standalone Mode
-
-| Feature | Standalone | AO Mode |
-|---------|------------|---------|
-| Subagent spawning | Yes | No (AO manages sessions) |
-| Hook location | Plugin directory | Workspace .claude/ |
-| State location | Plugin directory | Workspace .claude/forge/ |
-| Metadata sync | No | Yes (AO dashboard) |
-| System prompt | Default | AO-optimized |
+| `AO_SESSION` | Session identifier |
+| `AO_DATA_DIR` | AO metadata directory |
+| `AO_PROJECT` | Project name |
 
 ## Troubleshooting
 
-### Installation not working
+### Phase blocked on debate
 
-Check that the workspace is a git repository:
-```bash
-git rev-parse --show-toplevel
+```
+Status: BLOCKED on debate
+debate_id: brainstorm-20260115-143022
+
+Missing: synthesis.md
+
+Phase will resume when debate completes.
+Run /forge:continue to re-check.
 ```
 
-### Metadata not syncing
+### No active workflow
 
-Verify AO environment variables:
-```bash
-echo $AO_SESSION $AO_DATA_DIR
+```
+Error: No active workflow found
+
+Start with: /forge:start "objective"
 ```
 
-Check that metadata file exists:
-```bash
-ls -la "$AO_DATA_DIR/$AO_SESSION"
+### Handoff missing
+
 ```
+Error: Handoff not found
+Expected: docs/forge/handoffs/{prev}-to-{current}.md
 
-### Hooks not running
-
-Ensure `.claude/settings.json` is valid JSON and contains the hook configurations.
+Previous phase may not have completed properly.
+```
 
 ## Files
 
-- `install.mjs` - Main installer (Node, no dependencies)
-- `install.sh` - Thin wrapper for shell execution
-- `forge-system-prompt.md` - AO-optimized FORGE protocol
-- `forge-agent-rules.md` - Short agent rules reference
-- `selftest.sh` - Automated test suite
+- `forge-system-prompt.md` - AO-native FORGE protocol
+- `install.mjs` - Installation script
+- `README.md` - This file

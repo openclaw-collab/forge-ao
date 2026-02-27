@@ -1,217 +1,374 @@
 {
   "name": "FORGE 10-Phase Development Workflow",
-  "version": "0.5.0",
-  "description": "AO-native comprehensive development workflow with embedded debate gates: Initialize → Brainstorm (Debate Gate) → Research → Design → Plan → Test → Build → Validate → Review → Learn",
+  "version": "2.0.0",
+  "description": "AO-native development workflow: Initialize → Brainstorm (Debate Gate) → Research → Design → Plan → Test → Build → Validate → Review → Learn",
+  "execution_model": "ao-native",
+  "principles": [
+    "Files are the source of truth",
+    "Chat output is never the source of truth",
+    "No subagent spawning by FORGE",
+    "Debate is artifact-driven and blocking",
+    "Phase completion requires handoff"
+  ],
+  "debate_config": {
+    "default_trigger": "major_decision",
+    "risk_threshold": 6,
+    "component_threshold": 3,
+    "cli_flags": {
+      "debate": {
+        "description": "Force debate even if not triggered by configuration",
+        "long_form": "--debate",
+        "short_form": "-d"
+      },
+      "no_debate": {
+        "description": "Skip debate even if triggered by configuration",
+        "long_form": "--no-debate",
+        "short_form": "-D"
+      }
+    }
+  },
   "phases": [
     {
       "id": "init",
       "name": "Initialize",
       "command": "/forge:start",
-      "skill": "forge-init",
-      "description": "Personalize FORGE setup for the project",
-      "artifacts": [".claude/CLAUDE.md", ".claude/forge/active-workflow.md"],
+      "description": "Setup project context and canonical knowledge structure",
+      "entry_actions": [
+        "Create docs/forge/knowledge/ structure",
+        "Initialize active-workflow.md",
+        "Capture project brief"
+      ],
+      "artifacts": [
+        "docs/forge/knowledge/brief.md",
+        "docs/forge/knowledge/assumptions.md",
+        "docs/forge/knowledge/decisions.md",
+        "docs/forge/knowledge/constraints.md",
+        "docs/forge/knowledge/risks.md",
+        "docs/forge/knowledge/glossary.md",
+        "docs/forge/knowledge/traceability.md",
+        ".claude/forge/active-workflow.md"
+      ],
+      "exit_criteria": [
+        "All knowledge files exist",
+        "active-workflow.md initialized",
+        "Handoff written: init-to-brainstorm"
+      ],
       "optional": false
     },
     {
       "id": "brainstorm",
       "name": "Brainstorm",
       "command": "/forge:brainstorm",
-      "skill": "forge-brainstorm",
-      "description": "Explore approaches, debate options, and reach structured decision",
+      "description": "Explore approaches with mandatory debate gate",
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load prior context from init handoff"
+      ],
       "artifacts": [
-        "docs/forge/brainstorm.md",
+        "docs/forge/phases/brainstorm.md",
         "docs/forge/debate/brainstorm-<id>/debate-plan.md",
         "docs/forge/debate/brainstorm-<id>/advocate.md",
         "docs/forge/debate/brainstorm-<id>/skeptic.md",
         "docs/forge/debate/brainstorm-<id>/operator.md",
-        "docs/forge/debate/brainstorm-<id>/synthesis.md"
+        "docs/forge/debate/brainstorm-<id>/synthesis.md",
+        "docs/forge/handoffs/brainstorm-to-research.md"
       ],
-      "gate": {
-        "name": "Debate Gate",
-        "description": "Mandatory structured debate before completing brainstorm",
-        "required_outputs": [
+      "debate_gate": {
+        "required": true,
+        "debate_enabled": true,
+        "debate_trigger": "always",
+        "blocking": true,
+        "completion_detected_by": "file_existence",
+        "required_files": [
           "debate-plan.md",
           "advocate.md",
           "skeptic.md",
           "operator.md",
           "synthesis.md"
-        ],
-        "ao_behavior": "FORGE generates debate plan only; AO executes debate via separate sessions",
-        "standalone_behavior": "FORGE runs structured self-debate, writing same artifacts"
+        ]
       },
+      "exit_criteria": [
+        "Debate synthesis exists and is complete",
+        "Decisions extracted to decisions.md",
+        "Risks extracted to risks.md",
+        "Handoff written: brainstorm-to-research"
+      ],
       "optional": false
     },
     {
       "id": "research",
       "name": "Research",
       "command": "/forge:research",
-      "skill": "forge-research",
-      "description": "Validate brainstorm decision with best practices research",
-      "artifacts": ["docs/forge/research.md"],
+      "description": "Validate brainstorm decisions with best practices research",
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load brainstorm handoff"
+      ],
+      "artifacts": [
+        "docs/forge/phases/research.md",
+        "docs/forge/handoffs/research-to-design.md"
+      ],
+      "debate_gate": {
+        "required": false,
+        "debate_enabled": true,
+        "debate_trigger": "risk_threshold",
+        "triggers": [
+          "Research contradicts brainstorm decision",
+          "New high-risk information discovered"
+        ]
+      },
+      "exit_criteria": [
+        "Research validates or challenges decisions",
+        "Assumptions validated/invalidated",
+        "Handoff written: research-to-design"
+      ],
       "optional": false
     },
     {
       "id": "design",
       "name": "Design",
       "command": "/forge:design",
-      "skill": "forge-design",
-      "description": "Create design specifications and mockups based on research",
-      "artifacts": ["docs/forge/design.md"],
+      "description": "System design first, then UI/UX design",
+      "design_layers": [
+        {
+          "name": "System Design",
+          "order": 1,
+          "elements": ["architecture", "components", "data", "APIs", "auth", "failure_modes"]
+        },
+        {
+          "name": "UI/UX Design",
+          "order": 2,
+          "depends_on": "System Design",
+          "elements": ["user_flows", "interfaces", "interactions", "accessibility"]
+        }
+      ],
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Validate system design exists before UI design"
+      ],
+      "artifacts": [
+        "docs/forge/phases/design.md",
+        "docs/forge/handoffs/design-to-plan.md"
+      ],
+      "debate_gate": {
+        "required": false,
+        "debate_enabled": true,
+        "debate_trigger": "major_decision",
+        "triggers": [
+          "Design affects >3 components",
+          "Design challenges prior decision"
+        ]
+      },
+      "exit_criteria": [
+        "System design complete",
+        "UI/UX design derived from system design",
+        "Handoff written: design-to-plan"
+      ],
       "optional": false
     },
     {
       "id": "plan",
       "name": "Plan",
       "command": "/forge:plan",
-      "skill": "forge-plan",
-      "description": "Create detailed implementation plans",
-      "artifacts": ["docs/forge/plan.md"],
+      "description": "Surgical implementation planning",
+      "prerequisites": ["System design must exist"],
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load design handoff"
+      ],
+      "artifacts": [
+        "docs/forge/phases/plan.md",
+        "docs/forge/handoffs/plan-to-test.md"
+      ],
+      "debate_gate": {
+        "required": false,
+        "debate_enabled": true,
+        "debate_trigger": "explicit_only",
+        "triggers": [
+          "Plan requires overriding design decision"
+        ]
+      },
+      "exit_criteria": [
+        "Implementation plan references design decisions",
+        "Tasks ordered by dependency",
+        "Handoff written: plan-to-test"
+      ],
       "optional": false
     },
     {
       "id": "test",
       "name": "Test Strategy",
       "command": "/forge:test",
-      "skill": "forge-test",
-      "description": "Define test strategy and write test cases before building",
-      "artifacts": ["docs/forge/test-strategy.md"],
+      "description": "Risk-based test planning",
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load plan handoff",
+        "Load risks.md for risk-based prioritization"
+      ],
+      "artifacts": [
+        "docs/forge/phases/test.md",
+        "docs/forge/handoffs/test-to-build.md"
+      ],
+      "debate_gate": {
+        "required": false,
+        "debate_enabled": true,
+        "debate_trigger": "risk_threshold",
+        "triggers": [
+          "Test strategy reveals unmitigated high risk"
+        ]
+      },
+      "exit_criteria": [
+        "Test cases cover all plan items",
+        "Risk-based prioritization applied",
+        "Handoff written: test-to-build"
+      ],
       "optional": false
     },
     {
       "id": "build",
       "name": "Build",
       "command": "/forge:build",
-      "skill": "forge-build",
-      "description": "Execute implementation with TDD discipline and automatic test loop",
-      "artifacts": ["src/", "tests/", "docs/forge/build-log.md"],
+      "description": "Execute with TDD discipline",
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load test handoff"
+      ],
+      "artifacts": [
+        "src/",
+        "tests/",
+        "docs/forge/phases/build.md",
+        "docs/forge/handoffs/build-to-validate.md"
+      ],
+      "test_gate": {
+        "required": true,
+        "blocking": true,
+        "description": "Build cannot complete until all tests pass"
+      },
+      "ralph_loop": {
+        "enabled": true,
+        "pattern": "internalized",
+        "steps": [
+          "Run tests",
+          "If fail: analyze, fix minimally, commit, repeat",
+          "If pass: exit loop"
+        ]
+      },
+      "exit_criteria": [
+        "All tests pass",
+        "Implementation follows plan",
+        "Handoff written: build-to-validate"
+      ],
       "optional": false
     },
     {
       "id": "validate",
       "name": "Validate",
       "command": "/forge:validate",
-      "skill": "forge-validate",
-      "description": "Verify implementation against requirements with evidence",
-      "artifacts": ["docs/forge/validation-report.md"],
+      "description": "Evidence-based verification",
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load build handoff"
+      ],
+      "artifacts": [
+        "docs/forge/phases/validate.md",
+        "docs/forge/handoffs/validate-to-review.md"
+      ],
+      "debate_gate": {
+        "required": false,
+        "debate_enabled": true,
+        "debate_trigger": "explicit_only",
+        "triggers": [
+          "Validation fails",
+          "Requirements not met"
+        ]
+      },
+      "exit_criteria": [
+        "All requirements verified with evidence",
+        "Traceability matrix updated",
+        "Handoff written: validate-to-review"
+      ],
       "optional": false
     },
     {
       "id": "review",
       "name": "Review",
       "command": "/forge:review",
-      "skill": "forge-review",
-      "description": "Code review and quality assessment from multiple angles",
-      "artifacts": ["docs/forge/review-report.md"],
+      "description": "Quality assessment",
+      "entry_actions": [
+        "Read decisions.md and constraints.md",
+        "Load validate handoff"
+      ],
+      "artifacts": [
+        "docs/forge/phases/review.md",
+        "docs/forge/handoffs/review-to-learn.md"
+      ],
+      "quality_checks": [
+        "Code quality",
+        "Security review",
+        "Performance review",
+        "Design compliance"
+      ],
+      "exit_criteria": [
+        "Quality checklist complete",
+        "Issues documented or resolved",
+        "Handoff written: review-to-learn"
+      ],
       "optional": false
     },
     {
       "id": "learn",
       "name": "Learn",
       "command": "/forge:learn",
-      "skill": "forge-learn",
-      "description": "Capture knowledge and update memory",
-      "artifacts": ["docs/forge/learnings.md"],
+      "description": "Pattern capture and knowledge update",
+      "entry_actions": [
+        "Read all prior phase outputs",
+        "Load review handoff"
+      ],
+      "artifacts": [
+        "docs/forge/phases/learn.md",
+        ".claude/memory/patterns/",
+        ".claude/memory/learnings/"
+      ],
+      "exit_criteria": [
+        "Patterns extracted",
+        "Learnings documented",
+        "Knowledge registry updated",
+        "Workflow marked complete"
+      ],
       "optional": false
     }
   ],
-  "quickCommands": [
-    {
-      "name": "/forge:quick",
-      "description": "Quick task execution for small changes"
-    },
-    {
-      "name": "/forge:help",
-      "description": "Show workflow status and recommendations including debate state"
-    },
-    {
-      "name": "/forge:swarm",
-      "description": "AO mode: Outputs AO spawn plan only. Standalone: Parallel agent execution",
-      "ao_behavior": "Generates parallel task plan for AO execution",
-      "standalone_behavior": "Spawns parallel Task agents"
-    },
-    {
-      "name": "/forge:debate",
-      "description": "Execute or generate debate for current phase"
-    }
-  ],
-  "agents": {
-    "skill-router": {
-      "description": "Routes tasks to appropriate skills and agents",
-      "trigger": "session_start"
-    },
-    "builder": {
-      "description": "Executes implementation tasks with TDD",
-      "trigger": "build_phase"
-    },
-    "researcher": {
-      "description": "Researches solutions and best practices",
-      "trigger": "research_phase"
-    },
-    "security-reviewer": {
-      "description": "Security-focused code review",
-      "trigger": "review_phase"
-    },
-    "performance-guardian": {
-      "description": "Performance analysis and optimization",
-      "trigger": "optimization_request"
-    },
-    "brainstormer": {
-      "description": "Ideation and exploration with debate integration",
-      "trigger": "brainstorm_phase"
-    },
-    "advocate": {
-      "description": "Debate role: argues FOR an approach",
-      "trigger": "debate_phase",
-      "writes_to": "docs/forge/debate/<id>/advocate.md"
-    },
-    "skeptic": {
-      "description": "Debate role: argues AGAINST an approach",
-      "trigger": "debate_phase",
-      "writes_to": "docs/forge/debate/<id>/skeptic.md"
-    },
-    "operator": {
-      "description": "Debate role: assesses implementation feasibility",
-      "trigger": "debate_phase",
-      "writes_to": "docs/forge/debate/<id>/operator.md"
-    },
-    "synthesizer": {
-      "description": "Debate role: reconciles positions and produces decision",
-      "trigger": "debate_phase",
-      "writes_to": "docs/forge/debate/<id>/synthesis.md"
-    },
-    "mass-change": {
-      "description": "Codebase-wide modifications",
-      "trigger": "mass_change_request"
-    },
-    "docs-maintainer": {
-      "description": "Documentation maintenance",
-      "trigger": "doc_drift"
-    },
-    "latex-validator": {
-      "description": "LaTeX validation for math rendering",
-      "trigger": "latex_content"
-    }
+  "phase_order": ["init", "brainstorm", "research", "design", "plan", "test", "build", "validate", "review", "learn"],
+  "knowledge_structure": {
+    "location": "docs/forge/knowledge/",
+    "files": ["brief.md", "assumptions.md", "decisions.md", "constraints.md", "risks.md", "glossary.md", "traceability.md"]
   },
-  "integration": {
-    "mcpServers": ["stitch", "context7", "memory"],
-    "hooks": ["PreCompact", "PreToolUse", "PostToolUse", "SessionStart", "UserPromptSubmit"],
-    "memorySystems": ["entity", "pattern", "learning", "consolidated"],
-    "aoIntegration": {
-      "enabled": true,
-      "mode_detection": "AO_SESSION env var",
-      "metadata_sync": true,
-      "debate_orchestration": "AO spawns debate sessions, FORGE generates plan only"
-    }
+  "artifact_structure": {
+    "phases": "docs/forge/phases/",
+    "handoffs": "docs/forge/handoffs/",
+    "debate": "docs/forge/debate/"
   },
+  "state_file": ".claude/forge/active-workflow.md",
   "debate_schema": {
-    "version": "1.0",
-    "location": "docs/forge/debate/<phase>-<id>/",
+    "version": "2.0",
+    "location": "docs/forge/debate/<phase>-<timestamp>/",
     "required_files": ["debate-plan.md", "advocate.md", "skeptic.md", "operator.md", "synthesis.md"],
     "completion_criteria": {
       "all_roles_written": true,
       "synthesis_includes_decision": true,
       "decision_criteria_documented": true,
       "kill_switch_defined": true
-    }
+    },
+    "blocking": true
+  },
+  "continue_behavior": {
+    "description": "/forge:continue resumes from last incomplete phase",
+    "logic": [
+      "Read active-workflow.md",
+      "Determine current phase and status",
+      "If blocked on debate: re-check debate completion",
+      "If in_progress: continue from last action",
+      "If completed: start next phase"
+    ]
   }
 }

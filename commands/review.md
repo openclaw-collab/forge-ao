@@ -1,184 +1,424 @@
 ---
 name: forge:review
-description: Comprehensive code review with parallel specialized reviewers
+description: Comprehensive code review with parallel specialized reviewers - AO-native
 disable-model-invocation: true
 ---
 
 # /forge:review
 
-Comprehensive code review with parallel specialized review angles.
+Comprehensive code review with parallel specialized review angles. AO-native only - no standalone mode, no prompts, file-based state.
 
-## State Update Protocol
+---
 
-**ON ENTRY:**
+## Phase Entry Protocol
+
+### Step 1: Read Prerequisites
+
 ```bash
-# Update state to review phase
-.claude/forge/scripts/forge-state.sh set-phase review
+# Read these files before execution:
+cat docs/forge/knowledge/decisions.md
+cat docs/forge/knowledge/constraints.md
+cat docs/forge/validation-report.md
+cat docs/forge/handoffs/validate-to-review.md
 ```
 
-**ON EXIT:**
-```bash
-# Mark phase complete and set next
-.claude/forge/scripts/forge-state.sh complete-phase
-.claude/forge/scripts/forge-state.sh set-next learn
+### Step 2: Update active-workflow.md
 
-# Write artifact
-cat > docs/forge/review-report.md << 'EOF'
-# Review Report: [Objective]
-
-## Findings Summary
-...
-EOF
+```yaml
+---
+workflow_id: "<workflow-id>"
+current_phase: review
+phase_status: in_progress
+phase_started_at: "<ISO-timestamp>"
+completed_phases:
+  - brainstorm
+  - research
+  - design
+  - plan
+  - test
+  - build
+  - validate
+---
 ```
 
-## Process
+---
 
-1. **Multi-angle review** - Different perspectives
-2. **Collect findings** - Synthesize results
-3. **Address issues** - If found
-4. **Document results** - Write to `docs/forge/review-report.md`
+## Phase Execution
+
+### Step 1: Generate Review Document
+
+Write to `docs/forge/phases/review.md`:
+
+```markdown
+---
+phase: review
+generated_at: "<ISO-timestamp>"
+objective: "<from validate handoff>"
+status: in_progress
+---
+
+# Review: [Objective]
+
+## Context
+
+### From Validation Phase
+[Summary from validate-to-review.md handoff]
+
+### Validation Results
+- Status: [Passed/Partial]
+- Gates passed: [N]/[Total]
+- Known issues: [N resolved, N outstanding]
+
+### Files to Review
+[List from implementation plan]
+
+### Constraints Applied
+[List relevant constraints from constraints.md]
 
 ## Review Angles
 
-Instead of spawning subagents, review from multiple angles:
-
 ### 1. Karpathy Guidelines Review
-- Simpler is better?
-- Surgical precision?
-- No premature abstraction?
-- Read before writing followed?
-- Evidence-based?
+
+| Guideline | Assessment | Evidence | Status |
+|-----------|------------|----------|--------|
+| Simpler is better | [Assessment] | [File:line] | ✅/⚠️/❌ |
+| Surgical precision | [Assessment] | [Files touched] | ✅/⚠️/❌ |
+| No premature abstraction | [Assessment] | [Example] | ✅/⚠️/❌ |
+| Read before writing | [Assessment] | [Evidence] | ✅/⚠️/❌ |
+| Evidence-based | [Assessment] | [Tests exist] | ✅/⚠️/❌ |
+| Lines per edit < 50 | [Assessment] | [Avg lines] | ✅/⚠️/❌ |
+| One logical change | [Assessment] | [Commit analysis] | ✅/⚠️/❌ |
+| No scope creep | [Assessment] | [vs plan] | ✅/⚠️/❌ |
+
+**Karpathy Score:** [X]/8 guidelines followed
 
 ### 2. Design Compliance Review
-- Matches design specs?
-- Design system followed?
-- UI/UX consistent?
-- Responsive correct?
+
+| Spec | Verification | Status |
+|------|--------------|--------|
+| Matches design.md | [Comparison] | ✅/⚠️/❌ |
+| Design system followed | [Check] | ✅/⚠️/❌ |
+| UI/UX consistent | [Check] | ✅/⚠️/❌ |
+| Responsive correct | [Check] | ✅/⚠️/❌ |
+| Accessibility met | [a11y check] | ✅/⚠️/❌ |
 
 ### 3. Performance Review
-- Unnecessary complexity?
-- Inefficient algorithms?
-- Memory leaks?
-- Bundle size impact?
+
+| Aspect | Finding | Severity | Recommendation |
+|--------|---------|----------|----------------|
+| Unnecessary complexity | [Finding] | High/Med/Low | [Rec] |
+| Algorithm efficiency | [Finding] | High/Med/Low | [Rec] |
+| Memory usage | [Finding] | High/Med/Low | [Rec] |
+| Bundle size impact | [Finding] | High/Med/Low | [Rec] |
+| N+1 queries | [Finding] | High/Med/Low | [Rec] |
 
 ### 4. Security Review
-- Input validation?
-- Authentication correct?
-- Authorization checks?
-- Secrets handling?
+
+| Check | Finding | Severity | Status |
+|-------|---------|----------|--------|
+| Input validation | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Authentication correct | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Authorization checks | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Secrets handling | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Injection prevention | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| XSS prevention | [Finding] | High/Med/Low | ✅/⚠️/❌ |
 
 ### 5. Code Quality Review
-- Naming clear?
-- Functions focused?
-- Error handling proper?
-- Documentation adequate?
 
-## AO Mode: Parallel Task Plan
+| Aspect | Finding | Severity | Status |
+|--------|---------|----------|--------|
+| Naming clear | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Functions focused | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Error handling proper | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Documentation adequate | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Type safety | [Finding] | High/Med/Low | ✅/⚠️/❌ |
+| Test coverage | [Finding] | High/Med/Low | ✅/⚠️/❌ |
 
-In AO mode, for comprehensive review, suggest:
+## Findings Summary
 
-```bash
-ao spawn <project> "review: Karpathy guidelines compliance"
-ao spawn <project> "review: security audit"
-ao spawn <project> "review: performance analysis"
-ao spawn <project> "review: code quality"
+### Critical Issues (Block Release)
+| ID | Issue | Location | Fix Required |
+|----|-------|----------|--------------|
+| C1 | [Description] | [File:line] | Yes |
+
+### High Priority Issues
+| ID | Issue | Location | Recommendation |
+|----|-------|----------|----------------|
+| H1 | [Description] | [File:line] | [Rec] |
+
+### Medium Priority Issues
+| ID | Issue | Location | Recommendation |
+|----|-------|----------|----------------|
+| M1 | [Description] | [File:line] | [Rec] |
+
+### Low Priority / Suggestions
+| ID | Suggestion | Location |
+|----|------------|----------|
+| L1 | [Suggestion] | [File:line] |
+
+## Code Review Checklist
+
+- [ ] No secrets in code
+- [ ] No console.logs in production code
+- [ ] Error handling in all async paths
+- [ ] Type safety maintained
+- [ ] No commented-out code
+- [ ] Consistent naming conventions
+- [ ] Proper JSDoc/comments
+- [ ] Tests cover edge cases
+- [ ] No unnecessary dependencies
+- [ ] Bundle size acceptable
 ```
 
-Synthesize findings from all reviews.
+### Step 2: Execute Multi-Angle Review
 
-## Acceptance Criteria
+Review from all angles within single AO session:
 
-This phase is complete when:
-- [ ] Karpathy guidelines compliance checked
-- [ ] Design specs compliance verified
-- [ ] Performance issues identified (if any)
-- [ ] Security issues identified (if any)
-- [ ] Code quality issues identified (if any)
-- [ ] Critical issues addressed or documented
-- [ ] `docs/forge/review-report.md` written
-- [ ] State updated: phase=review, status=completed
-- [ ] Next phase set to learn
+```bash
+# Review each file from plan
+for file in [files from plan]; do
+  # Karpathy check
+  # Design compliance check
+  # Performance check
+  # Security check
+  # Quality check
+done
+```
 
-## Phase Artifacts
+---
 
-**Writes to:** `docs/forge/review-report.md`
+## Phase Exit Protocol
 
-### Artifact Structure
+### Step 1: Write Final Review Report
+
+Write to `docs/forge/review-report.md`:
+
 ```markdown
+---
+phase: review
+completed_at: "<ISO-timestamp>"
+objective: "<objective>"
+status: complete
+---
+
 # Review Report: [Objective]
 
 ## Summary
 
 **Overall Grade:** A/B/C/D
-**Critical Issues:** N
-**Warnings:** N
-**Suggestions:** N
+**Critical Issues:** [N]
+**High Priority:** [N]
+**Medium Priority:** [N]
+**Suggestions:** [N]
 
-## Karpathy Guidelines
+**Recommendation:** Approve / Approve with changes / Request changes
 
-| Guideline | Status | Notes |
-|-----------|--------|-------|
-| Simpler is better | ✅ | Clean implementation |
-| Surgical precision | ⚠️ | File X could be smaller |
-| No premature abstraction | ✅ | Appropriate |
-| Evidence-based | ✅ | Tests validate |
+## Grade Breakdown
 
-## Design Compliance
+| Category | Score | Weight | Weighted |
+|----------|-------|--------|----------|
+| Karpathy Guidelines | X/8 | 25% | X |
+| Design Compliance | X/5 | 20% | X |
+| Performance | X/5 | 20% | X |
+| Security | X/6 | 20% | X |
+| Code Quality | X/6 | 15% | X |
+| **Overall** | | | **X%** |
 
-- UI specs: ✅/❌
-- Design system: ✅/❌
-- Responsive: ✅/❌
-- Accessibility: ✅/❌
+## Critical Issues (Must Fix)
 
-## Performance
-
-| Metric | Value | Threshold | Status |
-|--------|-------|-----------|--------|
-| Bundle size | XKB | <YKB | ✅/❌ |
-| Load time | Xms | <Yms | ✅/❌ |
-
-## Security
-
-- Input validation: ✅/❌
-- Auth/Authz: ✅/❌
-- Secrets: ✅/❌
-
-## Critical Issues
-
-1. **[Issue]** - Severity: Critical
-   - [Description]
-   - [Recommendation]
-
-## Warnings
-
-1. **[Warning]**
-   - [Description]
-   - [Recommendation]
-
-## Suggestions
-
-- [Suggestion 1]
-- [Suggestion 2]
+| ID | Issue | File | Fix Required |
+|----|-------|------|--------------|
+| C1 | [Description] | [File] | [What to do] |
 
 ## Action Items
 
-- [ ] Fix critical issue 1
-- [ ] Address warning 2
+### Required (Block Merge)
+- [ ] Fix C1: [Description]
+- [ ] Fix H1: [Description]
+
+### Recommended (Should Fix)
+- [ ] Address M1: [Description]
+- [ ] Address M2: [Description]
+
+### Optional (Nice to Have)
+- [ ] Consider L1: [Suggestion]
+
+## Positive Findings
+
+- [What was done well]
+- [Clean implementation examples]
+
+## Full Review Document
+
+See: `docs/forge/phases/review.md`
 ```
 
-## Karpathy Check
+### Step 2: Write Handoff Document
 
-- Lines < 50 per edit
-- One logical change
-- No scope creep
-- Evidence required
+Write to `docs/forge/handoffs/review-to-learn.md`:
 
-## Next Steps
+```markdown
+---
+from_phase: review
+to_phase: learn
+generated_at: "<ISO-timestamp>"
+workflow_id: "<workflow-id>"
+status: final
+---
 
-After review:
-- `/forge:learn` - Capture patterns and learnings
-- `/forge:build` - If fixes needed
+# Phase Handoff: review → learn
+
+## Summary
+
+### What Was Done
+Comprehensive multi-angle code review completed.
+
+### Key Outcomes
+- Review grade: [A/B/C/D]
+- Critical issues: [N]
+- High priority: [N]
+- Recommendation: [Approve/Changes requested]
+
+## Review Results
+
+### Grade by Category
+| Category | Score | Notes |
+|----------|-------|-------|
+| Karpathy Guidelines | X/8 | [Brief] |
+| Design Compliance | X/5 | [Brief] |
+| Performance | X/5 | [Brief] |
+| Security | X/6 | [Brief] |
+| Code Quality | X/6 | [Brief] |
+
+### Issues Summary
+| Severity | Count | Resolved | Outstanding |
+|----------|-------|----------|-------------|
+| Critical | [N] | [N] | [N] |
+| High | [N] | [N] | [N] |
+| Medium | [N] | [N] | [N] |
+| Low | [N] | [N] | [N] |
+
+## For Learn Phase
+
+### Patterns to Extract
+| Pattern | Location | Quality | Notes |
+|---------|----------|---------|-------|
+| [Pattern 1] | [File] | Good/Bad | [Why] |
+| [Pattern 2] | [File] | Good/Bad | [Why] |
+
+### Learnings to Capture
+| Type | Topic | Context |
+|------|-------|---------|
+| Success | [What worked] | [Context] |
+| Anti-pattern | [What to avoid] | [Context] |
+
+### Decisions to Archive
+| Decision | Context | Outcome |
+|----------|---------|---------|
+| [Decision] | [Why made] | [Result] |
+
+## Artifacts Produced
+
+| Artifact | Location | Status |
+|----------|----------|--------|
+| Review Detail | docs/forge/phases/review.md | Complete |
+| Review Report | docs/forge/review-report.md | Complete |
+
+## Reference Materials
+
+- Phase output: `docs/forge/phases/review.md`
+- Validation Report: `docs/forge/validation-report.md`
+- Implementation Plan: `docs/forge/phases/plan.md`
+- Design: `docs/forge/phases/design.md`
+
+## Sign-off
+
+Phase completed: Yes
+Blocked by: None
+Ready to proceed: Yes
+```
+
+### Step 3: Update active-workflow.md
+
+```yaml
+---
+workflow_id: "<workflow-id>"
+current_phase: review
+phase_status: completed
+phase_started_at: "<ISO-timestamp>"
+phase_completed_at: "<ISO-timestamp>"
+completed_phases:
+  - brainstorm
+  - research
+  - design
+  - plan
+  - test
+  - build
+  - validate
+  - review
+next_phase: learn
+---
+```
+
+---
+
+## Acceptance Criteria
+
+Phase completes when:
+
+- [x] Phase Entry Protocol executed (all reads completed)
+- [x] Karpathy guidelines compliance checked
+- [x] Design specs compliance verified
+- [x] Performance issues identified (if any)
+- [x] Security issues identified (if any)
+- [x] Code quality issues identified (if any)
+- [x] Critical issues documented
+- [x] High priority issues documented
+- [x] Medium/low issues documented
+- [x] Overall grade assigned
+- [x] Recommendation made
+- [x] `docs/forge/phases/review.md` written
+- [x] `docs/forge/review-report.md` written
+- [x] `docs/forge/handoffs/review-to-learn.md` written
+- [x] `docs/forge/active-workflow.md` updated
+
+---
+
+## Next Phase
+
+Auto-proceeds to: `/forge:learn` (pattern extraction and workflow completion)
+
+---
 
 ## Required Skill
 
 **REQUIRED:** `@forge-review`
+
+---
+
+## Key Principles
+
+1. **Multi-Angle Review** - All perspectives in single session
+2. **Karpathy Compliance** - Strict adherence to guidelines
+3. **No standalone mode** - AO-native only
+4. **Non-interactive** - No prompts, no menus, file-based state only
+5. **Evidence-Based** - Specific file:line references
+6. **Graded Assessment** - Clear A/B/C/D rating
+
+---
+
+## File Structure
+
+```
+docs/forge/
+├── active-workflow.md              # Updated on entry/exit
+├── review-report.md                # Final artifact
+├── phases/
+│   └── review.md                  # Detailed review findings
+├── handoffs/
+│   ├── validate-to-review.md      # Input (read)
+│   └── review-to-learn.md         # Output (write)
+└── knowledge/
+    ├── decisions.md               # Read on entry
+    └── constraints.md             # Read on entry
+```

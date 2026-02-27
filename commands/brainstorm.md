@@ -1,73 +1,88 @@
 ---
 name: forge:brainstorm
-description: Explore approaches through structured analysis with mandatory debate gate
+description: Explore approaches through structured analysis with mandatory debate gate (AO-native)
 disable-model-invocation: true
 ---
 
 # /forge:brainstorm
 
-Explore ideas and approaches through structured analysis with mandatory **Debate Gate**. The brainstorm phase completes only after a structured debate produces a synthesized decision.
+Explore ideas and approaches through structured analysis with mandatory **Debate Gate**. This is an AO-native command - it operates exclusively within the AO ecosystem and blocks until debate synthesis is complete.
 
-## State Update Protocol
+## AO-Native Behavior
 
-**ON ENTRY:**
-```bash
-# Generate debate ID
-DEBATE_ID="brainstorm-$(date +%Y%m%d-%H%M%S)"
-.claude/forge/scripts/forge-state.sh set-phase brainstorm
-.claude/forge/scripts/forge-debate.mjs init --id "$DEBATE_ID" --phase brainstorm
-```
+- **No standalone mode** - AO-only execution
+- **Mandatory debate gate** - Phase cannot complete without debate synthesis
+- **Non-interactive** - No prompts, no menus, file-based state only
+- **Blocking** - Waits for debate completion via file detection
 
-**ON EXIT (after debate gate passes):**
-```bash
-.claude/forge/scripts/forge-state.sh complete-phase
-.claude/forge/scripts/forge-state.sh set-next research
-```
+---
 
-## Usage
+## Phase Entry Protocol
+
+### Step 1: Read Prerequisites
 
 ```bash
-/forge:brainstorm "add user profile page"
-/forge:brainstorm "fix navigation bug"
-/forge:brainstorm "improve loading performance"
+# Read these files before execution:
+cat docs/forge/knowledge/decisions.md
+cat docs/forge/knowledge/constraints.md
+cat docs/forge/handoffs/init-to-brainstorm.md
 ```
 
-## Process Overview
+### Step 2: Update active-workflow.md
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  1. EXPLORE     │────▶│  2. DEBATE GATE │────▶│  3. SYNTHESIS   │
-│  3+ approaches  │     │  Mandatory      │     │  Final decision │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-  docs/forge/           docs/forge/debate/      docs/forge/
-  brainstorm-options.md   <id>/                 brainstorm.md
-                        ├── debate-plan.md
-                        ├── advocate.md
-                        ├── skeptic.md
-                        ├── operator.md
-                        └── synthesis.md
+```yaml
+---
+workflow_id: "<workflow-id>"
+current_phase: brainstorm
+phase_status: in_progress
+phase_started_at: "<ISO-timestamp>"
+completed_phases: []
+active_debate_id: "brainstorm-<timestamp>"
+---
 ```
 
-## Phase 1: Explore (Generate Options)
+---
 
-Generate at least 3 distinct approaches:
+## Phase Execution
+
+### Step 1: Generate Exploration Document
+
+Write exploration to `docs/forge/phases/brainstorm.md`:
 
 ```markdown
-# Brainstorm Options: [Objective]
+---
+phase: brainstorm
+generated_at: "<ISO-timestamp>"
+objective: "<user-provided objective>"
+status: exploring
+---
 
-## Option A: [Name]
+# Brainstorm: [Objective]
+
+## Context
+
+### From Previous Phase
+[Summary from init-to-brainstorm.md handoff]
+
+### Constraints Applied
+[List relevant constraints from constraints.md]
+
+## Exploration
+
+### Option A: [Name]
 **Approach:** [Description]
-**Pros:** ...
-**Cons:** ...
+**Pros:**
+- ...
+**Cons:**
+- ...
 **Complexity:** Low/Medium/High
 **Estimated Effort:** [time]
+**Confidence:** High/Medium/Low
 
-## Option B: [Name]
+### Option B: [Name]
 ...
 
-## Option C: [Name]
+### Option C: [Name]
 ...
 
 ## Preliminary Tradeoff Matrix
@@ -77,22 +92,44 @@ Generate at least 3 distinct approaches:
 | A      | ★★★★★      | ★★★☆☆       | ★★★★☆           | Low  |
 | B      | ...        | ...         | ...             | ...  |
 | C      | ...        | ...         | ...             | ...  |
+
+## Debate Trigger
+
+**Debate Required:** Yes
+**Debate ID:** brainstorm-<timestamp>
+**Options for Debate:** A, B, C
+**Key Tradeoffs:** [List the main tensions between options]
 ```
 
-## Phase 2: Debate Gate (Mandatory)
+### Step 2: Generate Debate Plan
 
-The Debate Gate requires structured debate before proceeding. This is **not optional**.
+Create directory and write debate plan:
 
-### Step 2a: Generate Debate Plan
+```bash
+DEBATE_ID="brainstorm-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "docs/forge/debate/${DEBATE_ID}"
+```
 
-Create `docs/forge/debate/brainstorm-<id>/debate-plan.md`:
+Write to `docs/forge/debate/{debate-id}/debate-plan.md`:
 
 ```markdown
+---
+debate_id: "brainstorm-<timestamp>"
+phase: brainstorm
+created_at: "<ISO-timestamp>"
+status: pending
+---
+
 # Debate Plan: Brainstorm-[ID]
 
 **Objective:** [Clear statement of what we're deciding]
-**Date:** [ISO timestamp]
-**Options Under Consideration:** [List the 3+ approaches]
+**Context:** [Reference to brainstorm.md exploration]
+
+## Options Under Consideration
+
+1. **Option A:** [Name] - [One-line summary]
+2. **Option B:** [Name] - [One-line summary]
+3. **Option C:** [Name] - [One-line summary]
 
 ## Debate Structure
 
@@ -131,60 +168,114 @@ Create `docs/forge/debate/brainstorm-<id>/debate-plan.md`:
 - `skeptic.md` - Concerns and risks
 - `operator.md` - Feasibility assessment
 - `synthesis.md` - Final decision with criteria
-```
 
-### Step 2b: Execute Debate
-
-**AO Mode:**
-```bash
-# FORGE generates debate plan only
-# AO spawns debate sessions externally
-
-## AO Debate Spawn Plan
+## AO Spawn Commands (Reference)
 
 ```bash
-# Spawn debate role sessions
-ao spawn <project> "FORGE: Write advocate.md for debate $DEBATE_ID"
-ao spawn <project> "FORGE: Write skeptic.md for debate $DEBATE_ID"
-ao spawn <project> "FORGE: Write operator.md for debate $DEBATE_ID"
-ao spawn <project> "FORGE: Write synthesis.md for debate $DEBATE_ID"
+# These commands are for reference - AO spawns debate roles externally
+# FORGE does not execute these
+
+ao spawn <project> "FORGE: Write advocate.md for debate ${DEBATE_ID}"
+ao spawn <project> "FORGE: Write skeptic.md for debate ${DEBATE_ID}"
+ao spawn <project> "FORGE: Write operator.md for debate ${DEBATE_ID}"
+ao spawn <project> "FORGE: Write synthesis.md for debate ${DEBATE_ID}"
+```
 ```
 
-# Wait for all files to exist, then continue
+### Step 3: Output AO Spawn Commands
+
+Output the following for AO reference:
+
+```
+================================================================================
+AO DEBATE SPAWN COMMANDS
+================================================================================
+
+Debate ID: ${DEBATE_ID}
+Debate Plan: docs/forge/debate/${DEBATE_ID}/debate-plan.md
+
+AO must spawn these sessions externally:
+
+1. Advocate:
+   ao spawn <project> "FORGE DEBATE: Write advocate.md for ${DEBATE_ID}. Read docs/forge/debate/${DEBATE_ID}/debate-plan.md and docs/forge/phases/brainstorm.md. Write your case to docs/forge/debate/${DEBATE_ID}/advocate.md"
+
+2. Skeptic:
+   ao spawn <project> "FORGE DEBATE: Write skeptic.md for ${DEBATE_ID}. Read docs/forge/debate/${DEBATE_ID}/debate-plan.md and docs/forge/phases/brainstorm.md. Write your critique to docs/forge/debate/${DEBATE_ID}/skeptic.md"
+
+3. Operator:
+   ao spawn <project> "FORGE DEBATE: Write operator.md for ${DEBATE_ID}. Read docs/forge/debate/${DEBATE_ID}/debate-plan.md and docs/forge/phases/brainstorm.md. Write feasibility assessment to docs/forge/debate/${DEBATE_ID}/operator.md"
+
+4. Synthesizer:
+   ao spawn <project> "FORGE DEBATE: Write synthesis.md for ${DEBATE_ID}. Read docs/forge/debate/${DEBATE_ID}/debate-plan.md, advocate.md, skeptic.md, and operator.md. Write final decision to docs/forge/debate/${DEBATE_ID}/synthesis.md"
+
+================================================================================
+BRAINSTORM PHASE BLOCKED - WAITING FOR DEBATE SYNTHESIS
+================================================================================
+
+Phase cannot continue until:
+- docs/forge/debate/${DEBATE_ID}/advocate.md exists
+- docs/forge/debate/${DEBATE_ID}/skeptic.md exists
+- docs/forge/debate/${DEBATE_ID}/operator.md exists
+- docs/forge/debate/${DEBATE_ID}/synthesis.md exists
+
+FORGE will poll for file existence. Do not proceed until all files exist.
+================================================================================
 ```
 
-**Standalone Mode:**
+---
+
+## Debate Gate (BLOCKING)
+
+### Gate Condition
+
+The brainstorm phase **CANNOT COMPLETE** until debate synthesis exists.
+
+### Polling Mechanism
+
 ```bash
-# FORGE runs structured self-debate in single session
-# Each role writes its file sequentially
-
-.claude/forge/scripts/forge-debate.mjs run --id "$DEBATE_ID"
-# This executes: advocate → skeptic → operator → synthesizer
+# Check every 30 seconds
+while true; do
+  if [[ -f "docs/forge/debate/${DEBATE_ID}/synthesis.md" ]]; then
+    echo "Debate synthesis detected"
+    break
+  fi
+  echo "Waiting for debate synthesis... ($(date))"
+  sleep 30
+done
 ```
 
-### Step 2c: Debate Completion Check
+### Required Files Checklist
 
-```bash
-.claude/forge/scripts/forge-debate.mjs check --id "$DEBATE_ID"
-# Returns: complete | incomplete
-# Checks all required files exist
-```
+Debate Gate passes when ALL files exist:
 
-**Debate Gate passes when:**
-- [ ] `debate-plan.md` exists
-- [ ] `advocate.md` exists (not empty)
-- [ ] `skeptic.md` exists (not empty)
-- [ ] `operator.md` exists (not empty)
-- [ ] `synthesis.md` exists with decision
-- [ ] Synthesis includes decision criteria
-- [ ] Synthesis includes kill-switch criteria
-- [ ] Synthesis includes fallback plan
+- [ ] `docs/forge/debate/{debate-id}/debate-plan.md`
+- [ ] `docs/forge/debate/{debate-id}/advocate.md` (not empty)
+- [ ] `docs/forge/debate/{debate-id}/skeptic.md` (not empty)
+- [ ] `docs/forge/debate/{debate-id}/operator.md` (not empty)
+- [ ] `docs/forge/debate/{debate-id}/synthesis.md` (with decision)
 
-## Phase 3: Final Brainstorm Artifact
+### On Debate Completion
+
+When synthesis.md is detected:
+
+1. **Extract decisions** and append to `docs/forge/knowledge/decisions.md`
+2. **Extract/update risks** in `docs/forge/knowledge/risks.md`
+3. **Generate final brainstorm artifact** (see below)
+
+---
+
+## Final Brainstorm Artifact
 
 Read synthesis and write final `docs/forge/brainstorm.md`:
 
 ```markdown
+---
+phase: brainstorm
+completed_at: "<ISO-timestamp>"
+debate_id: "brainstorm-<timestamp>"
+status: complete
+---
+
 # Brainstorm: [Objective]
 
 ## Decision Summary
@@ -192,7 +283,7 @@ Read synthesis and write final `docs/forge/brainstorm.md`:
 **Selected Approach:** [Option X - Name]
 **Confidence:** [High/Medium/Low]
 **Decision Date:** [ISO timestamp]
-**Debate Reference:** [Link to debate files]
+**Debate Reference:** `docs/forge/debate/brainstorm-<timestamp>/`
 
 ## Decision Criteria
 
@@ -206,7 +297,7 @@ Read synthesis and write final `docs/forge/brainstorm.md`:
 
 ## Why This Option Won
 
-[2-3 sentence rationale tied to criteria]
+[2-3 sentence rationale tied to criteria from synthesis.md]
 
 ## Kill-Switch Criteria
 
@@ -241,11 +332,11 @@ If primary approach fails:
 
 ## Debate Artifacts
 
-- Debate Plan: `docs/forge/debate/brainstorm-<id>/debate-plan.md`
-- Advocate: `docs/forge/debate/brainstorm-<id>/advocate.md`
-- Skeptic: `docs/forge/debate/brainstorm-<id>/skeptic.md`
-- Operator: `docs/forge/debate/brainstorm-<id>/operator.md`
-- Synthesis: `docs/forge/debate/brainstorm-<id>/synthesis.md`
+- Debate Plan: `docs/forge/debate/brainstorm-<timestamp>/debate-plan.md`
+- Advocate: `docs/forge/debate/brainstorm-<timestamp>/advocate.md`
+- Skeptic: `docs/forge/debate/brainstorm-<timestamp>/skeptic.md`
+- Operator: `docs/forge/debate/brainstorm-<timestamp>/operator.md`
+- Synthesis: `docs/forge/debate/brainstorm-<timestamp>/synthesis.md`
 
 ## Next Phase Input
 
@@ -255,17 +346,127 @@ If primary approach fails:
 - [Question 2]
 ```
 
-## Debate Role Prompts
+---
+
+## Phase Exit Protocol
+
+### Step 1: Write Handoff Document
+
+Write to `docs/forge/handoffs/brainstorm-to-research.md`:
+
+```markdown
+---
+from_phase: brainstorm
+to_phase: research
+generated_at: "<ISO-timestamp>"
+workflow_id: "<workflow-id>"
+status: final
+---
+
+# Phase Handoff: brainstorm → research
+
+## Summary
+
+### What Was Done
+Explored 3+ approaches for "[objective]" and selected Option [X] via structured debate.
+
+### Key Outcomes
+- Selected approach: [Option X - Name]
+- Confidence level: [High/Medium/Low]
+- Debate artifacts: `docs/forge/debate/brainstorm-<timestamp>/`
+
+## Locked Decisions
+
+| Decision ID | Title | Rationale | Challenge Requires Debate |
+|-------------|-------|-----------|---------------------------|
+| D001 | [Selected approach] | [Brief rationale] | Yes |
+
+## Open Assumptions
+
+| Assumption ID | Description | Validation Due By | Risk if Invalid |
+|---------------|-------------|-------------------|-----------------|
+| A001 | [Assumption 1] | research phase | [Risk] |
+
+## Constraints for Next Phase
+
+| Constraint ID | Description | Source | Violation Triggers |
+|---------------|-------------|--------|--------------------|
+| C001 | [Constraint from decision] | brainstorm decision | Debate |
+
+## TODO List for Next Phase
+
+1. [ ] Validate [specific aspect] (priority: high)
+2. [ ] Research [specific question]
+3. [ ] Confirm [assumption]
+
+## Escalation Conditions
+
+- [ ] Selected approach proves infeasible during research
+- [ ] New constraints discovered that conflict with decision
+
+## Risk Summary
+
+| Risk Level | Count | Highest Priority Risk |
+|------------|-------|----------------------|
+| High       | [N]   | [Risk description]   |
+| Medium     | [N]   |                      |
+| Low        | [N]   |                      |
+
+## Artifacts Produced
+
+| Artifact | Location | Status |
+|----------|----------|--------|
+| Exploration | docs/forge/phases/brainstorm.md | Complete |
+| Debate Plan | docs/forge/debate/brainstorm-<timestamp>/debate-plan.md | Complete |
+| Debate Synthesis | docs/forge/debate/brainstorm-<timestamp>/synthesis.md | Complete |
+| Final Decision | docs/forge/brainstorm.md | Complete |
+
+## Reference Materials
+
+- Phase output: `docs/forge/phases/brainstorm.md`
+- Decisions: `docs/forge/knowledge/decisions.md`
+- Risks: `docs/forge/knowledge/risks.md`
+
+## Sign-off
+
+Phase completed: Yes
+Blocked by: None
+Ready to proceed: Yes
+```
+
+### Step 2: Update active-workflow.md
+
+```yaml
+---
+workflow_id: "<workflow-id>"
+current_phase: brainstorm
+phase_status: completed
+phase_started_at: "<ISO-timestamp>"
+phase_completed_at: "<ISO-timestamp>"
+completed_phases:
+  - brainstorm
+active_debate_id: null
+next_phase: research
+---
+```
+
+---
+
+## Debate Role Prompts (For AO Spawn)
 
 ### Advocate System Prompt
+
 ```
-You are the ADVOCATE in a structured debate.
+You are the ADVOCATE in a structured FORGE debate.
 
-Your job: Make the strongest possible case FOR [selected option].
+Your job: Make the strongest possible case FOR the leading option.
 
-Output: Write to docs/forge/debate/<id>/advocate.md
+Context:
+- Read: docs/forge/debate/{debate-id}/debate-plan.md
+- Read: docs/forge/phases/brainstorm.md
+- Write to: docs/forge/debate/{debate-id}/advocate.md
 
-Structure:
+Structure your output:
 1. Core Argument (3 sentences max)
 2. Key Strengths (bullet list)
 3. Comparative Advantages (vs other options)
@@ -280,14 +481,18 @@ Rules:
 ```
 
 ### Skeptic System Prompt
+
 ```
-You are the SKEPTIC in a structured debate.
+You are the SKEPTIC in a structured FORGE debate.
 
 Your job: Probe weaknesses, find failure modes, challenge assumptions.
 
-Output: Write to docs/forge/debate/<id>/skeptic.md
+Context:
+- Read: docs/forge/debate/{debate-id}/debate-plan.md
+- Read: docs/forge/phases/brainstorm.md
+- Write to: docs/forge/debate/{debate-id}/skeptic.md
 
-Structure:
+Structure your output:
 1. Critical Questions (5+ probing questions)
 2. Hidden Assumptions (what are we assuming?)
 3. Failure Modes (how could this go wrong?)
@@ -302,14 +507,18 @@ Rules:
 ```
 
 ### Operator System Prompt
+
 ```
-You are the OPERATOR in a structured debate.
+You are the OPERATOR in a structured FORGE debate.
 
 Your job: Assess implementation feasibility from ground truth.
 
-Output: Write to docs/forge/debate/<id>/operator.md
+Context:
+- Read: docs/forge/debate/{debate-id}/debate-plan.md
+- Read: docs/forge/phases/brainstorm.md
+- Write to: docs/forge/debate/{debate-id}/operator.md
 
-Structure:
+Structure your output:
 1. Resource Requirements (people, time, infra)
 2. Timeline Reality Check (optimistic/realistic/pessimistic)
 3. Dependency Analysis (what must happen first)
@@ -324,15 +533,20 @@ Rules:
 ```
 
 ### Synthesizer System Prompt
+
 ```
-You are the SYNTHESIZER in a structured debate.
+You are the SYNTHESIZER in a structured FORGE debate.
 
 Your job: Read all debate outputs and produce a final, actionable decision.
 
-Inputs: advocate.md, skeptic.md, operator.md
-Output: Write to docs/forge/debate/<id>/synthesis.md
+Context:
+- Read: docs/forge/debate/{debate-id}/debate-plan.md
+- Read: docs/forge/debate/{debate-id}/advocate.md
+- Read: docs/forge/debate/{debate-id}/skeptic.md
+- Read: docs/forge/debate/{debate-id}/operator.md
+- Write to: docs/forge/debate/{debate-id}/synthesis.md
 
-Structure:
+Structure your output:
 1. Summary of Positions (2-3 sentences per role)
 2. Key Tradeoffs (what we gained vs gave up)
 3. Final Decision (which option, clear statement)
@@ -348,56 +562,91 @@ Rules:
 - Must be specific enough to execute
 ```
 
-## AO Mode Behavior
-
-In AO mode (AO_SESSION set):
-1. FORGE generates debate plan and options
-2. FORGE outputs `ao spawn` commands for debate roles
-3. **FORGE does NOT spawn debate agents internally**
-4. AO executes debate sessions externally
-5. FORGE detects completion and synthesizes final artifact
-
-## Standalone Mode Behavior
-
-In standalone mode (no AO_SESSION):
-1. FORGE generates debate plan
-2. FORGE runs structured self-debate sequentially
-3. Each role writes its file in order
-4. Synthesis produces final artifact
+---
 
 ## Auto-Completion Criteria
 
-Phase auto-completes when:
-- [ ] At least 3 distinct approaches explored
-- [ ] Tradeoffs documented for each
-- [ ] **Debate Gate passed** (all debate files exist)
-- [ ] Synthesis includes decision with criteria
-- [ ] Kill-switch criteria defined
-- [ ] Fallback plan documented
-- [ ] `docs/forge/brainstorm.md` written
-- [ ] Debate artifacts linked
+Phase completes when:
+
+- [x] At least 3 distinct approaches explored
+- [x] Tradeoffs documented for each
+- [x] Debate plan generated
+- [x] **Debate Gate passed** (synthesis.md exists)
+- [x] Decisions extracted to knowledge/decisions.md
+- [x] Risks updated in knowledge/risks.md
+- [x] `docs/forge/brainstorm.md` written
+- [x] Handoff to research phase written
+- [x] `active-workflow.md` updated
+
+---
 
 ## Next Phase
 
 Auto-proceeds to: `/forge:research` (validating the decision)
 
+---
+
 ## Required Skills
 
 **REQUIRED:** `@forge-brainstorm`
-**REQUIRED:** `@forge-debate` (for debate gate)
 
-## Commands
+---
+
+## Usage
 
 ```bash
-# Check debate status
-/forge:debate --status
+/forge:brainstorm "add user profile page"
+/forge:brainstorm "fix navigation bug"
+/forge:brainstorm "improve loading performance"
 
-# Generate debate plan only (AO mode)
-/forge:debate --plan
+# Debate control flags
+/forge:brainstorm "objective" --debate      # Force debate (default for brainstorm)
+/forge:brainstorm "objective" --no-debate   # Skip debate (override)
+```
 
-# Run debate in current session (standalone)
-/forge:debate --run
+## Debate Configuration
 
-# Check if debate gate passes
-/forge:debate --check
+Brainstorm phase has debate enabled by default with trigger mode `always`.
+
+### Override Behavior
+
+| Flag | Effect |
+|------|--------|
+| `--debate` | Forces debate ON (redundant for brainstorm, but explicit) |
+| `--no-debate` | Skips debate gate - phase completes without debate synthesis |
+
+### When to Use `--no-debate`
+
+Only skip debate when:
+- Exploring trivial changes (<10 lines)
+- No architectural decisions required
+- Quick prototyping with throwaway code
+- Emergency fixes with established patterns
+
+**Warning:** Skipping debate on significant decisions bypasses structured evaluation and increases risk of suboptimal outcomes.
+
+---
+
+## File Structure
+
+```
+docs/forge/
+├── active-workflow.md              # Updated on entry/exit
+├── brainstorm.md                   # Final artifact
+├── phases/
+│   └── brainstorm.md              # Exploration document
+├── debate/
+│   └── brainstorm-<timestamp>/
+│       ├── debate-plan.md         # Debate structure
+│       ├── advocate.md            # Case FOR
+│       ├── skeptic.md             # Concerns
+│       ├── operator.md            # Feasibility
+│       └── synthesis.md           # Final decision
+├── handoffs/
+│   ├── init-to-brainstorm.md      # Input (read)
+│   └── brainstorm-to-research.md  # Output (write)
+└── knowledge/
+    ├── decisions.md               # Updated with new decisions
+    ├── constraints.md             # Read on entry
+    └── risks.md                   # Updated with debate risks
 ```

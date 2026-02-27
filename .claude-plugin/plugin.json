@@ -1,7 +1,7 @@
 {
   "name": "forge-ao",
-  "version": "1.0.0",
-  "description": "FORGE-AO: Agent-native 10-phase development workflow for Agent Orchestrator. AO-only, no standalone mode. Features mandatory debate gates, drift-resistant handoffs, and deterministic artifacts.",
+  "version": "2.0.0",
+  "description": "FORGE-AO 2.0: AO-native 10-phase development workflow. File-based state management with mandatory debate gates. FORGE generates debate plans, AO spawns role sessions, completion detected via file existence. Drift-resistant handoffs, deterministic artifacts, session-independent resume via /forge:continue.",
   "author": {
     "name": "Muadh Sambul",
     "email": "user@example.com"
