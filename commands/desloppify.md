@@ -1,179 +1,186 @@
 ---
 name: forge:desloppify
-description: Quality hardening phase - Run desloppify to improve codebase quality (AO-native)
+description: Spawn an autonomous desloppify agent session for continuous codebase quality improvement (AO-native)
 disable-model-invocation: true
 ---
 
 # /forge:desloppify
 
-Run desloppify quality harness to systematically improve codebase quality. This is an AO-native command that integrates with the desloppify tool for maintaining existing code.
+Spawn an autonomous desloppify agent session that continuously improves codebase quality. This is an AO-native integration that leverages desloppify's own harness and workflow.
 
 ## Usage
 
 ```bash
-/forge:desloppify                    # Run quality scan and improvement loop
-/forge:desloppify --target 95       # Set target strict score (default: 95)
-/forge:desloppify --path src/       # Scan specific path
-/forge:desloppify --quick           # Quick mode: only T1/T2 issues
+/forge:desloppify                    # Spawn desloppify agent with default target
+/forge:desloppify --target 98       # Set target strict score (default: 95)
+/forge:desloppify --path src/       # Focus on specific path
+/forge:desloppify --continuous      # Run continuously in background (default)
+/forge:desloppify --once            # Single scan and fix cycle
 ```
 
 ## AO-Native Behavior
 
-- **No standalone mode** - Requires desloppify to be installed in workspace
-- **Non-interactive** - Uses file-based state and exit codes
-- **Blocking** - Phase completes when target score is reached or max iterations exceeded
+- **Spawns independent agent** - Desloppify runs in its own AO session
+- **Uses desloppify's own harness** - No feature reimplementation
+- **File-based coordination** - Desloppify state in `.desloppify/`, FORGE state in `.claude/forge/`
+- **Non-blocking** - Desloppify agent runs continuously; FORGE continues with other work
 
 ## Prerequisites
 
-Ensure desloppify is installed:
+Desloppify must be installed in the workspace (agent will handle this):
 
 ```bash
 pip install "desloppify[full]"
-desloppify update-skill claude  # Install skill for Claude Code
 ```
 
-## Phase Execution
+## How It Works
 
-### Step 1: Baseline Scan
+### Step 1: Spawn Desloppify Agent
+
+FORGE spawns an AO session with the desloppify role:
 
 ```bash
+ao spawn <project> "Desloppify Agent" \
+  --role desloppify \
+  --env TARGET_SCORE=95 \
+  --env SCAN_PATH=. \
+  --env CONTINUOUS=true
+```
+
+### Step 2: Agent Bootstraps Desloppify
+
+The spawned agent:
+
+1. Installs desloppify if not present
+2. Runs `desloppify update-skill claude` to install skill
+3. Starts the desloppify workflow
+
+```bash
+# Agent initialization
 desloppify scan --path .
 desloppify status
 ```
 
-Capture current scores and identify improvement areas.
+### Step 3: Desloppify's Autonomous Loop
 
-### Step 2: Target Score Check
+The agent follows desloppify's native two-loop workflow:
 
-Compare current strict score against target (default: 95):
+**Outer Loop (periodic):**
+```bash
+desloppify scan --path .       # Refresh state
+desloppify status              # Check if target met
+```
+
+**Inner Loop (continuous):**
+```bash
+desloppify next --explain      # Get next priority issue
+# ... agent fixes issue ...
+desloppify resolve fixed <id>  # Mark resolved
+# Repeat until queue clear or target met
+```
+
+### Step 4: Coordination with FORGE
+
+The desloppify agent:
+- Writes findings to `.desloppify/state.json`
+- Updates scorecard badge (e.g., `assets/quality-scorecard.png`)
+- Can be queried by FORGE for status
+
+FORGE can check desloppify status:
+```bash
+desloppify status --json | jq '.strict_score'
+```
+
+## Session Configuration
+
+The spawned agent receives:
+
+```yaml
+system_prompt: |
+  You are a desloppify quality agent. Your job is to continuously improve
+  codebase quality using the desloppify tool.
+
+  Follow the desloppify workflow:
+  1. Run `desloppify scan` to establish baseline
+  2. Run `desloppify next` to get the next priority issue
+  3. Fix the issue properly (not superficially)
+  4. Run `desloppify resolve fixed <id>` to mark resolved
+  5. Repeat until target score is reached
+
+  Rules:
+  - Never game the score - only genuine improvements count
+  - Large refactors are fine if needed
+  - Small fixes are also valuable
+  - Always run tests after changes
+  - Commit frequently with descriptive messages
+
+  Target strict score: {{target_score}}
+  Current score: check with `desloppify status`
+
+env:
+  TARGET_SCORE: "95"
+  SCAN_PATH: "."
+  AO_FORGE_ROLE: "desloppify"
+```
+
+## Integration Points
+
+### With FORGE Workflow
+
+```
+... → Build → [Desloppify Agent Spawns] → Review → ...
+                    ↓
+              Continuously runs
+              in background
+```
+
+### With CI/CD
+
+The desloppify agent can:
+- Run pre-commit checks
+- Block PRs if strict_score < target
+- Update badge on every commit
+
+### With Other FORGE Phases
+
+- **Build phase**: Desloppify agent fixes issues introduced during build
+- **Review phase**: FORGE can query desloppify status as part of review
+- **Learn phase**: Desloppify findings feed into pattern extraction
+
+## Required Writes (by Desloppify Agent)
+
+- `.desloppify/state.json` - Persistent state
+- `.desloppify/config.json` - Configuration
+- `docs/forge/phases/desloppify-status.md` - Status report for FORGE
+- `assets/quality-scorecard.png` - Badge (configurable path)
+
+## Status Monitoring
+
+FORGE checks desloppify status:
 
 ```bash
-CURRENT_SCORE=$(desloppify status --json | jq '.strict_score')
-if [ "$CURRENT_SCORE" -ge "95" ]; then
+# Quick check
+if desloppify status --json | jq -e '.strict_score >= 95' > /dev/null; then
   echo "✅ Quality target met"
-  exit 0
 fi
+
+# Full report
+desloppify status
+desloppify plan   # Show prioritized plan
 ```
 
-### Step 3: Improvement Loop
-
-While score < target and iterations < max:
+## Stopping the Agent
 
 ```bash
-MAX_ITERATIONS=10
-ITERATION=0
+# Kill desloppify session
+ao session kill <desloppify-session-id>
 
-while [ $ITERATION -lt $MAX_ITERATIONS ]; do
-  # Get next priority item
-  desloppify next --explain
-
-  # Fix the issue (as determined by agent)
-  # ... make code changes ...
-
-  # Mark as resolved
-  desloppify resolve fixed <finding-id>
-
-  # Re-scan to check progress
-  desloppify scan --path .
-
-  # Check if target met
-  CURRENT_SCORE=$(desloppify status --json | jq '.strict_score')
-  if [ "$CURRENT_SCORE" -ge "95" ]; then
-    echo "✅ Quality target met"
-    break
-  fi
-
-  ITERATION=$((ITERATION + 1))
-done
+# Or from within FORGE
+/forge:desloppify --stop
 ```
-
-### Step 4: Final Validation
-
-```bash
-# Generate final scorecard
-desloppify scan --path . --badge-path assets/quality-scorecard.png
-
-# Verify all T1/T2 issues resolved
-desloppify status --json | jq '.tiers.T1.open, .tiers.T2.open'
-```
-
-## Required Writes
-
-- Quality report: `docs/forge/phases/desloppify.md`
-- Scorecard badge: `assets/quality-scorecard.png` (or configured path)
-- Handoff: `docs/forge/handoffs/desloppify-to-review.md`
-
-## Phase Handoff Output
-
-```markdown
----
-from_phase: desloppify
-to_phase: review
-generated_at: "<ISO-timestamp>"
----
-
-# Phase Handoff: desloppify → review
-
-## Quality Metrics
-
-| Metric | Before | After | Target |
-|--------|--------|-------|--------|
-| Strict Score | 78 | 96 | 95 |
-| T1 Issues | 12 | 0 | 0 |
-| T2 Issues | 8 | 1 | 0 |
-| T3 Issues | 15 | 12 | - |
-| T4 Issues | 5 | 5 | - |
-
-## Key Improvements
-
-- Fixed 12 unused imports and variables
-- Resolved 7 naming inconsistencies
-- Refactored 3 overly complex functions
-- Removed 2 god components (split into smaller modules)
-
-## Risks Accepted
-
-| Risk | Rationale |
-|------|-----------|
-| T3: Near-duplicate in utils/ | Intentional - different use cases |
-| T4: Auth module complexity | Requires architectural change - deferred |
-
-## Next Phase Notes
-
-Codebase now meets quality standards for review phase.
-```
-
-## Integration with FORGE Workflow
-
-### As a Standalone Phase
-
-```
-... → Build → /forge:desloppify → Review → ...
-```
-
-### As Continuous Quality
-
-During Build phase, periodically run:
-
-```bash
-/forge:desloppify --quick  # Only T1/T2 auto-fixable issues
-```
-
-## Exit Criteria
-
-Phase completes when:
-- [ ] Strict score ≥ target (default 95)
-- [ ] All T1 issues resolved
-- [ ] T2 issues ≤ threshold (default: 2)
-- [ ] Scorecard badge generated
-- [ ] Phase handoff written
-
-## Required Skills
-
-**REQUIRED:** `@desloppify`
 
 ## See Also
 
-- `/forge:review` - Next phase after quality hardening
-- `/forge:build` - Preceding phase where code is written
-- desloppify docs: https://github.com/openclaw-collab/desloppify
+- Desloppify repo: https://github.com/openclaw-collab/desloppify
+- `/forge:review` - Next phase after desloppify
+- `/forge:status` - Check FORGE and desloppify status
